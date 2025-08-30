@@ -10,6 +10,7 @@ require_once __DIR__ . '/../lib/csrf.php';
     <title>Mini Web Panel</title>
     <link rel="stylesheet" href="/public/css/style.css">
     <script src="/public/js/app.js" defer></script>
+    <script src="/public/js/modules/passgen.js" defer></script>
 </head>
 <body>
 <div class="container">
