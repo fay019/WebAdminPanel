@@ -5,8 +5,11 @@ if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 function is_logged_in(): bool { return isset($_SESSION['user']); }
 function require_login(): void { if (!is_logged_in()) { header('Location: /login.php'); exit; } }
 function login(string $u, string $p): bool {
-  $st = db()->prepare('SELECT * FROM users WHERE username=:u'); $st->execute([':u'=>$u]); $row=$st->fetch();
-  if ($row && password_verify($p, $row['password_hash'])) { $_SESSION['user']=$u; return true; }
+  // Case-insensitive username lookup (SQLite lower()) while keeping password_verify() intact
+  $st = db()->prepare('SELECT * FROM users WHERE lower(username) = lower(:u) LIMIT 1');
+  $st->execute([':u'=>$u]);
+  $row = $st->fetch();
+  if ($row && password_verify($p, $row['password_hash'])) { $_SESSION['user'] = $row['username']; return true; }
   return false;
 }
 function logout(): void { $_SESSION=[]; session_destroy(); }
