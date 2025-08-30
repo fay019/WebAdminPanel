@@ -77,6 +77,12 @@ include __DIR__ . '/partials/header.php';
                 <input type="password" name="new_password" required minlength="8" placeholder="Min. 8 caractères, maj/min/chiffre">
                 <label>Confirmer le nouveau mot de passe</label>
                 <input type="password" name="new_password_confirm" required minlength="8">
+                <div class="pw-tools" data-pass-tools>
+                  <button type="button" class="btn small" data-action="generate" aria-label="Générer un mot de passe">Générer</button>
+                  <button type="button" class="btn small" data-action="toggle" aria-label="Afficher ou masquer le mot de passe">Afficher</button>
+                  <button type="button" class="btn small" data-action="copy" aria-label="Copier le mot de passe">Copier</button>
+                  <span class="pw-strength" data-role="strength" aria-live="polite">Force: —</span>
+                </div>
                 <button class="btn primary" style="margin-top:10px">Mettre à jour</button>
             </form>
         </div>

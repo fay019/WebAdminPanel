@@ -86,8 +86,9 @@
   function initTools(container){
     const form = container.closest('form');
     if(!form) return;
-    const pw = form.querySelector('input[name="password"]');
-    const cf = form.querySelector('input[name="confirm"]');
+    // Support both create/edit (password, confirm) and account change (new_password, new_password_confirm)
+    const pw = form.querySelector('input[name="password"], input[name="new_password"]');
+    const cf = form.querySelector('input[name="confirm"], input[name="new_password_confirm"]');
     if(!pw) return;
     const genBtn = container.querySelector('[data-action="generate"]');
     const toggleBtn = container.querySelector('[data-action="toggle"]');
