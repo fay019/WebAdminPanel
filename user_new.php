@@ -16,7 +16,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(!preg_match('~[A-Z]~',$password)) $err[]='Ajouter une majuscule.';
     if(!preg_match('~[a-z]~',$password)) $err[]='Ajouter une minuscule.';
     if(!preg_match('~\\d~',$password)) $err[]='Ajouter un chiffre.';
-    $st=db()->prepare('SELECT COUNT(*) FROM users WHERE username=:u'); $st->execute([':u'=>$username]);
+    $st=db()->prepare('SELECT COUNT(*) FROM users WHERE username=:u COLLATE NOCASE'); $st->execute([':u'=>$username]);
     if($st->fetchColumn()>0) $err[]='Nom déjà pris.';
     if(!$err){
         $st=db()->prepare('INSERT INTO users(username,password_hash,created_at) VALUES(:u,:p,:c)');

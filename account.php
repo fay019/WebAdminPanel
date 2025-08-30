@@ -5,7 +5,7 @@ require_once __DIR__ . '/lib/csrf.php';
 require_once __DIR__ . '/partials/flash.php';
 
 $me = current_user();
-$stmt = db()->prepare('SELECT * FROM users WHERE username = :u');
+$stmt = db()->prepare('SELECT * FROM users WHERE lower(username) = lower(:u)');
 $stmt->execute([':u'=>$me]);
 $user = $stmt->fetch();
 if(!$user){ http_response_code(404); die('Utilisateur introuvable'); }
@@ -17,7 +17,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $err=[];
         if($new==='' || strlen($new)<3) $err[]='Nom trop court.';
         if($new!==$me){
-            $chk=db()->prepare('SELECT COUNT(*) FROM users WHERE username=:u'); $chk->execute([':u'=>$new]);
+            $chk=db()->prepare('SELECT COUNT(*) FROM users WHERE username=:u COLLATE NOCASE AND id<>:id'); $chk->execute([':u'=>$new, ':id'=>$user['id']]);
             if($chk->fetchColumn()>0) $err[]='Nom déjà pris.';
         }
         if(!$err){

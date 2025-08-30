@@ -16,7 +16,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $err=[];
         if(strlen($username)<3) $err[]='Nom trop court (min 3).';
         if($username!==$user['username']){
-            $chk=db()->prepare('SELECT COUNT(*) FROM users WHERE username=:u'); $chk->execute([':u'=>$username]);
+            $chk=db()->prepare('SELECT COUNT(*) FROM users WHERE username=:u COLLATE NOCASE AND id<>:id'); $chk->execute([':u'=>$username, ':id'=>$id]);
             if($chk->fetchColumn()>0) $err[]='Nom déjà pris.';
         }
         if(!$err){

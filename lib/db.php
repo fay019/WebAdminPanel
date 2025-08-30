@@ -38,4 +38,10 @@ function migrate(): void {
         payload TEXT,
         created_at TEXT NOT NULL
     )");
+    // Ensure case-insensitive uniqueness on usernames (SQLite NOCASE)
+    try {
+        $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS users_username_nocase ON users(username COLLATE NOCASE)");
+    } catch (Exception $e) {
+        // If duplicates differing only by case already exist, index creation will fail; handle manually and re-run migrate().
+    }
 }
