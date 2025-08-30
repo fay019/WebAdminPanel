@@ -1,5 +1,6 @@
 // Modale de confirmation stylée + fallback confirm()
-// Fonctionne avec <a data-confirm="..."> ou confirmDelete(event,'...')
+// Fonctionne avec <a data-confirm="...">, <form data-confirm="...">,
+// <button data-confirm> et avec confirmDelete(event,'...')
 
 (function () {
     function fallbackConfirm(ev, message) {
@@ -20,7 +21,7 @@
     function openModal(message, href) {
         if (!modal || !msgEl || !okBtn) return false; // fallback plus tard
         msgEl.textContent = message || 'Confirmer ?';
-        okBtn.setAttribute('href', href || '#');
+        if (href) okBtn.setAttribute('href', href);
         lastFocus = document.activeElement;
         modal.hidden = false;
         okBtn.focus();
@@ -32,6 +33,7 @@
         if (!modal) return;
         modal.hidden = true;
         document.removeEventListener('keydown', onKey);
+        if (okBtn) okBtn.removeAttribute('href');
         if (lastFocus && lastFocus.focus) lastFocus.focus();
     }
 
@@ -40,7 +42,7 @@
     }
 
     if (modal) {
-        cancel.addEventListener('click', closeModal);
+        cancel?.addEventListener('click', closeModal);
         modal.addEventListener('click', (e) => {
             if (e.target === modal) closeModal();
         });
@@ -58,60 +60,186 @@
         return fallbackConfirm(ev, message);
     };
 
-    // Version sans inline JS : <a data-confirm="...">
+    // Confirmation pour <a data-confirm="...">
     document.addEventListener('click', function (e) {
         const a = e.target.closest('a[data-confirm]');
         if (!a) return;
 
         const msg = a.getAttribute('data-confirm') || 'Confirmer ?';
+        const actionUrl = (a.getAttribute('href') || '#').trim();
+        let isPower = false;
+        try { isPower = new URL(actionUrl, window.location.origin).pathname.endsWith('/system_power.php'); }
+        catch { isPower = actionUrl.includes('system_power.php'); }
+        const action = a.getAttribute('data-action'); // shutdown|reboot
+        const csrf   = a.getAttribute('data-csrf') || '';
+        const ajax   = a.getAttribute('data-ajax') || '1';
 
-        // On bloque la navigation d’abord
         e.preventDefault();
 
-        // Si tu as un modal custom
-        if (typeof openModal === 'function' && openModal(msg, a.href)) {
-            return; // le modal gère la suite
-        }
-
-        // Fallback : confirm() natif OU ta fonction fallbackConfirm
-        if (typeof fallbackConfirm === 'function') {
-            if (fallbackConfirm(e, msg)) window.location.href = a.href;
+        // Cas spécial: lien power → on ne navigue pas, on poste via JS après confirmation
+        if (isPower && action) {
+            if (openModal(msg)) {
+                if (okBtn) {
+                    const onOk = function (ev) {
+                        ev.preventDefault();
+                        closeModal();
+                        // Construit un formulaire temporaire pour réutiliser le flux existant
+                        const form = document.createElement('form');
+                        form.setAttribute('method', 'POST');
+                        form.setAttribute('action', actionUrl);
+                        const f1 = document.createElement('input'); f1.type='hidden'; f1.name='csrf'; f1.value=csrf; form.appendChild(f1);
+                        const f2 = document.createElement('input'); f2.type='hidden'; f2.name='ajax'; f2.value=ajax; form.appendChild(f2);
+                        const f3 = document.createElement('input'); f3.type='hidden'; f3.name='action'; f3.value=action; form.appendChild(f3);
+                        document.dispatchEvent(new CustomEvent('power:submit', { detail: { form, actionUrl } }));
+                    };
+                    okBtn.addEventListener('click', onOk, { once: true });
+                }
+                return;
+            }
+            // Fallback : confirm() natif
+            if (fallbackConfirm(e, msg)) {
+                const form = document.createElement('form');
+                form.setAttribute('method', 'POST');
+                form.setAttribute('action', actionUrl);
+                const f1 = document.createElement('input'); f1.type='hidden'; f1.name='csrf'; f1.value=csrf; form.appendChild(f1);
+                const f2 = document.createElement('input'); f2.type='hidden'; f2.name='ajax'; f2.value=ajax; form.appendChild(f2);
+                const f3 = document.createElement('input'); f3.type='hidden'; f3.name='action'; f3.value=action; form.appendChild(f3);
+                document.dispatchEvent(new CustomEvent('power:submit', { detail: { form, actionUrl } }));
+            }
             return;
         }
 
-        if (window.confirm(msg)) {
-            window.location.href = a.href;
-        }
+        // Cas général: liens non-power → navigation après confirmation
+        if (openModal(msg, a.href)) return;
+
+        // Fallback : confirm() natif
+        if (fallbackConfirm(e, msg)) window.location.href = a.href;
     });
 
     // Confirmation pour <form data-confirm="...">
     document.addEventListener('submit', function (e) {
         const form = e.target.closest('form[data-confirm]');
         if (!form) return;
+
         const msg = form.getAttribute('data-confirm') || 'Confirmer ?';
-        // Empêche l'envoi immédiat
+        const submitter = e.submitter || null;
         e.preventDefault();
-        // Utilise le modal si présent
-        if (typeof openModal === 'function' && openModal(msg)) {
+
+        if (openModal(msg)) {
             if (okBtn) {
                 const onOk = function (ev) {
                     ev.preventDefault();
-                    okBtn.removeEventListener('click', onOk);
+                    // Détermine si c'est un formulaire power
+                    let actionUrl = (form.getAttribute('action') || '/system_power.php').trim();
+                    let isPower = false;
+                    try { isPower = new URL(actionUrl, window.location.origin).pathname.endsWith('/system_power.php'); }
+                    catch { isPower = actionUrl.includes('system_power.php'); }
+
                     closeModal();
-                    form.submit();
+                    if (isPower && window.SYSINFO_URL) {
+                        const detail = {
+                            form,
+                            actionUrl,
+                            submitterName: submitter?.name || null,
+                            submitterValue: submitter?.value || null
+                        };
+                        document.dispatchEvent(new CustomEvent('power:submit', { detail }));
+                    } else {
+                        // Préserver le bouton cliqué (name/value) pour le submit normal
+                        let temp;
+                        if (submitter && submitter.name) {
+                            temp = document.createElement('input');
+                            temp.type = 'hidden';
+                            temp.name = submitter.name;
+                            temp.value = submitter.value || '1';
+                            form.appendChild(temp);
+                        }
+                        form.submit();
+                        if (temp) temp.remove();
+                    }
                 };
-                okBtn.addEventListener('click', onOk, {once: true});
+                okBtn.addEventListener('click', onOk, { once: true });
             }
             return;
         }
-        // Fallback confirm natif
-        if (typeof fallbackConfirm === 'function') {
-            if (fallbackConfirm(e, msg)) form.submit();
+
+        // Fallback
+        if (fallbackConfirm(e, msg)) {
+            let actionUrl = (form.getAttribute('action') || '/system_power.php').trim();
+            let isPower = false;
+            try { isPower = new URL(actionUrl, window.location.origin).pathname.endsWith('/system_power.php'); }
+            catch { isPower = actionUrl.includes('system_power.php'); }
+            if (isPower) {
+                const detail = {
+                    form,
+                    actionUrl,
+                    submitterName: submitter?.name || null,
+                    submitterValue: submitter?.value || null
+                };
+                document.dispatchEvent(new CustomEvent('power:submit', { detail }));
+            } else {
+                let temp;
+                if (submitter && submitter.name) {
+                    temp = document.createElement('input');
+                    temp.type = 'hidden';
+                    temp.name = submitter.name;
+                    temp.value = submitter.value || '1';
+                    form.appendChild(temp);
+                }
+                form.submit();
+                if (temp) temp.remove();
+            }
+        }
+    });
+
+    // ✅ Confirmation pour <button data-confirm> (et <input type="submit" data-confirm>)
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-confirm], input[type="submit"][data-confirm]');
+        if (!btn) return;
+        // Ne pas intercepter les boutons power (gérés par un flux dédié)
+        if (btn.hasAttribute('data-power')) return;
+
+        const msg = btn.getAttribute('data-confirm') || 'Confirmer ?';
+        e.preventDefault();
+
+        // Action après OK (soumettre le form ou naviguer)
+        const proceed = () => {
+            const form = btn.closest('form');
+            if (form) {
+                // S'assurer que le name/value du bouton est transmis au submit
+                let temp;
+                if (btn.name) {
+                    temp = document.createElement('input');
+                    temp.type = 'hidden';
+                    temp.name = btn.name;
+                    temp.value = btn.value || '1';
+                    form.appendChild(temp);
+                }
+                form.submit();
+                if (temp) temp.remove();
+            } else {
+                const href = btn.getAttribute('data-href') || btn.getAttribute('formaction') || btn.getAttribute('href');
+                if (href) window.location.href = href;
+            }
+        };
+
+        if (openModal(msg)) {
+            if (okBtn) {
+                const onOk = (ev) => {
+                    ev.preventDefault();
+                    closeModal();
+                    proceed();
+                };
+                okBtn.addEventListener('click', onOk, { once: true });
+            }
             return;
         }
-        if (window.confirm(msg)) form.submit();
+
+        // Fallback
+        if (fallbackConfirm(e, msg)) proceed();
     });
 })();
+
 // --- Dashboard live sysinfo (polling) ---
 (function () {
     const url = window.SYSINFO_URL;
@@ -154,7 +282,7 @@
 
     // Essaie JSON, sinon retombe sur clé=valeur
     async function fetchSysinfo() {
-        const r = await fetch(url, {cache: 'no-store'});
+        const r = await fetch(url, { cache: 'no-store' });
         if (!r.ok) throw new Error('http ' + r.status);
         const raw = await r.text();
         try {
@@ -213,6 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
     const form = document.getElementById('installForm');
     if (!form) return;
 
@@ -251,25 +380,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function streamInstall(submitterBtn) {
-        // Normaliser URL de cible de façon sûre (éviter [object HTMLButtonElement])
+        // Normaliser l’URL cible (éviter [object HTMLButtonElement])
         let actionAttr = (form.getAttribute('action') || '').trim();
         if (!actionAttr) actionAttr = '/php_manage.php?stream=1';
-        // Construire une URL absolue pour fetch
+
         let targetUrl;
         try {
             targetUrl = new URL(actionAttr, window.location.origin).toString();
-        } catch (e) {
+        } catch {
             targetUrl = '/php_manage.php?stream=1';
             console.warn('installForm action invalide, fallback vers', targetUrl);
         }
-        // Construire la FormData avec le "submitter" (le bouton cliqué)
+
         const fd = new FormData(form);
 
         // Ajouter le bouton cliqué pour avoir action=install
         if (submitterBtn && submitterBtn.name) {
             fd.append(submitterBtn.name, submitterBtn.value || 'install');
         }
-        // Sécurité : si aucune action n’est passée, forcer install
         if (!fd.has('action')) fd.append('action', 'install');
 
         // Forcer le mode stream côté PHP
@@ -280,46 +408,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: fd,
                 credentials: 'same-origin',
-                headers: {'Accept': 'text/plain'}
+                headers: { 'Accept': 'text/plain' }
             });
 
-            // Si on a été redirigé ou si le serveur renvoie du HTML
+            // Si redirection ou HTML → on n’est pas en stream
             const ct = resp.headers.get('content-type') || '';
             if (resp.redirected || ct.includes('text/html')) {
-                // Ne pas naviguer : garder la modale ouverte et afficher une explication
                 setOverlayErrorState(true);
                 endOverlay();
                 const target = resp.url || '/';
                 if (preLog) {
                     preLog.textContent += `\n[ERREUR] Réponse non-stream (HTML/redirect) reçue.\n`;
                     preLog.textContent += `Cible: ${target}\n`;
-                    preLog.textContent += `Conseils: vérifiez la session (login), le token CSRF, ou les redirections de votre serveur.\n`;
+                    preLog.textContent += `Conseils: vérifiez la session (login), le token CSRF, ou les redirections.\n`;
                 }
                 return;
             }
 
-            // Lire le flux en streaming (text/plain attendu)
+            // Lecture en streaming
             const reader = resp.body?.getReader();
             const decoder = new TextDecoder();
             let gotAny = false;
             while (reader) {
-                const {value, done} = await reader.read();
+                const { value, done } = await reader.read();
                 if (done) break;
-                const chunk = decoder.decode(value, {stream: true});
+                const chunk = decoder.decode(value, { stream: true });
                 if (chunk) gotAny = true;
                 if (preLog) {
                     preLog.textContent += chunk;
                     preLog.scrollTop = preLog.scrollHeight;
                 }
-                // Détecte immédiatement une ligne d'erreur
                 if (chunk && /\[(ERREUR|ERROR)\]/i.test(chunk)) {
                     setOverlayErrorState(true);
                 }
             }
-            // Si aucune sortie reçue, suggérer la vérification sudoers
             if (!gotAny && preLog) {
                 setOverlayErrorState(true);
-                preLog.textContent += "\n[INFO] Aucune sortie reçue. Vérifiez que sudo autorise /var/www/adminpanel/bin/php_manage.sh (install.sh déploie sudoers).";
+                preLog.textContent += "\n[INFO] Aucune sortie reçue. Vérifiez sudoers pour php_manage.sh.";
             }
         } catch (e) {
             if (preLog) preLog.textContent += `\n[ERREUR] ${e?.message || e}`;
@@ -328,17 +453,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Intercepter le submit du formulaire (y compris “Entrée”)
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const submitter = e.submitter; // bouton réellement cliqué
-        openOverlay('Installation en cours…');
-        // Lancer le stream
-        streamInstall(submitter);
-    });
-
-    // Mémoriser le dernier bouton cliqué pour Safari qui ne renseigne pas toujours e.submitter
+    // ✅ Un seul listener submit (gère aussi Safari via lastSubmitter)
     let lastSubmitter = null;
+
     form.addEventListener('click', (ev) => {
         const btn = ev.target && ev.target.closest('button, input[type="submit"]');
         if (btn && form.contains(btn)) {
@@ -346,7 +463,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, true);
 
-    // Intercepter le submit et utiliser lastSubmitter si e.submitter indisponible
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         const submitter = e.submitter || lastSubmitter; // Safari fallback
@@ -354,24 +470,180 @@ document.addEventListener('DOMContentLoaded', () => {
         streamInstall(submitter);
     });
 
-    // Au clic sur le bouton “Installer”, soumettre le formulaire proprement
-    const installBtn = form.querySelector('[data-install]');
-    if (installBtn) {
-        installBtn.addEventListener('click', (ev) => {
-            // Utiliser la méthode standard si dispo, sinon fallback
-            if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit(installBtn);
-            } else {
-                lastSubmitter = installBtn;
-                form.dispatchEvent(new Event('submit', {cancelable: true}));
-            }
-        });
-    }
-
     // Bouton “Fermer” : cache la modale et refresh la page
     btnClose?.addEventListener('click', () => {
         closeOverlay();
-        // recharger pour rafraîchir la liste des versions détectées
         location.reload();
     });
 });
+// --- Feedback reboot/shutdown (sondage boot_id via SYSINFO_URL) ---
+(function () {
+    if (!window.SYSINFO_URL) return;
+
+    const overlay = document.getElementById('powerOverlay');
+    const titleEl = document.getElementById('powerTitle');
+    const hintEl  = document.getElementById('powerHint');
+    const logEl   = document.getElementById('powerLog');
+    const closeBt = document.getElementById('powerClose');
+
+    function showOverlay(title, hint) {
+        if (titleEl && title) titleEl.textContent = title;
+        if (hintEl && hint)   hintEl.textContent  = hint;
+        if (logEl) logEl.textContent = '';
+        if (closeBt) closeBt.disabled = true;
+        if (overlay) { overlay.style.display = 'block'; overlay.setAttribute('aria-hidden','false'); }
+    }
+    function setDot(color) {
+        const dot = overlay?.querySelector('.ok-dot');
+        if (dot) dot.style.background = color;
+    }
+    function finishOverlay() { if (closeBt) closeBt.disabled = false; }
+    closeBt?.addEventListener('click', () => {
+        if (overlay) { overlay.style.display = 'none'; overlay.setAttribute('aria-hidden','true'); }
+        // Si on était en reboot, recharger; si shutdown, ne pas forcer reload
+        const mode = overlay?.dataset?.powerMode || '';
+        if (mode !== 'shutdown') location.reload();
+    });
+
+    // Parse "clé=valeur" en objet (normalise les clés)
+    function parseKV(txt) {
+        const out = {};
+        (txt || '').split(/\r?\n/).forEach(l => {
+            const i = l.indexOf('=');
+            if (i <= 0) return;
+            const k = l.slice(0,i).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+            const v = l.slice(i+1).trim();
+            out[k] = v;
+        });
+        return out;
+    }
+
+    async function readSysinfo() {
+        const r = await fetch(window.SYSINFO_URL, { cache: 'no-store' });
+        const t = await r.text();
+        try { return JSON.parse(t); } catch { return parseKV(t); }
+    }
+
+    async function getBootId() {
+        try {
+            const d = await readSysinfo();
+            return d.boot_id || d.bootId || null;
+        } catch { return null; }
+    }
+
+    async function postPower(url, fd) {
+        const r = await fetch(url, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'Accept':'text/plain' }
+        });
+        // On n’attend pas de HTML ici
+        return r.text();
+    }
+
+    async function runPowerFlow(form, actionUrl, submitterName, submitterValue) {
+        showOverlay('Commande en cours…', 'Lecture de l’état actuel…');
+
+        const beforeId = await getBootId();
+        if (beforeId) {
+            logEl.textContent += `boot_id actuel : ${beforeId}\n`;
+        } else {
+            logEl.textContent += `Impossible de lire boot_id actuel (ok quand même).\n`;
+        }
+
+        setDot('#60a5fa');
+        hintEl.textContent = 'Envoi de la commande…';
+
+        // Construit la FormData courante (avec l’action choisie)
+        const fd = new FormData(form);
+        if (submitterName) {
+            fd.set(submitterName, submitterValue || '1');
+        }
+        // s’assure qu’on reste en mode texte
+        fd.set('ajax','1');
+
+        // Envoie la commande (shutdown/reboot)
+        let respText = '';
+        try {
+            respText = await postPower(actionUrl, fd);
+            logEl.textContent += respText + '\n';
+        } catch (err) {
+            setDot('#ef4444');
+            hintEl.textContent = 'Erreur d’envoi de la commande';
+            logEl.textContent += `[ERREUR] ${err?.message || err}\n`;
+            finishOverlay();
+            return;
+        }
+
+        // Si c’est un shutdown : on s’attend à ce que la machine tombe et NE revienne pas
+        const isShutdown = (fd.get('action') === 'shutdown');
+        if (overlay) overlay.dataset.powerMode = isShutdown ? 'shutdown' : 'reboot';
+
+        // Compte à rebours affiché (retardateur ~30s)
+        let seconds = 30;
+        try { seconds = Math.max(5, parseInt(form.getAttribute('data-countdown') || '30', 10)); } catch {}
+        setDot('#f59e0b');
+        if (hintEl) hintEl.textContent = (isShutdown ? 'Extinction dans ' : 'Arrêt avant redémarrage dans ') + `${seconds}s…`;
+        await new Promise(async (resolve) => {
+            const timer = setInterval(() => {
+                seconds -= 1;
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    resolve();
+                    return;
+                }
+                if (hintEl) hintEl.textContent = (isShutdown ? 'Extinction dans ' : 'Arrêt avant redémarrage dans ') + `${seconds}s…`;
+            }, 1000);
+        });
+
+        if (isShutdown) {
+            // Fin du compte à rebours → dire au revoir et indiquer comment rallumer
+            setDot('#22c55e');
+            if (logEl) {
+                logEl.textContent += 'Extinction demandée. À très bientôt !\n';
+                logEl.textContent += 'Pour redémarrer votre Raspberry Pi 5 (sans bouton), débranchez et rebranchez l’alimentation.\n';
+            }
+            if (hintEl) hintEl.textContent = 'À très bientôt ! Débranche puis rebranche pour rallumer.';
+            finishOverlay();
+            return;
+        } else {
+            // Fin du compte à rebours → rechargement de la page pour le redémarrage
+            if (hintEl) hintEl.textContent = 'Redémarrage en cours… rechargement de la page.';
+            // Petite attente pour laisser partir la page si besoin
+            setTimeout(() => { location.reload(); }, 500);
+            return;
+        }
+    }
+
+    // Intercepte la soumission des formulaires power (toujours empêche la soumission native)
+    document.addEventListener('submit', async (e) => {
+        const form = e.target?.closest('form');
+        if (!form) return;
+        let actionUrl = (form.getAttribute('action') || '/system_power.php').trim();
+        let isPower = false;
+        try { isPower = new URL(actionUrl, window.location.origin).pathname.endsWith('/system_power.php'); }
+        catch { isPower = actionUrl.includes('system_power.php'); }
+        if (!isPower) return;
+
+        // Toujours empêcher la soumission par défaut pour les formulaires power
+        e.preventDefault();
+
+        // Si une confirmation est demandée sur le formulaire, ne pas lancer ici.
+        // Le handler data-confirm ouvrira la modale et, après OK, émettra 'power:submit'.
+        if (form.matches('[data-confirm]')) return;
+
+        // Pas de confirmation configurée: on lance directement le flux power avec le bon submitter
+        const submitter = e.submitter || null;
+        const submitterName = submitter?.name || null;
+        const submitterValue = submitter?.value || null;
+        runPowerFlow(form, actionUrl, submitterName, submitterValue);
+    });
+
+    // Écoute l'événement custom déclenché après confirmation sur les formulaires power
+    document.addEventListener('power:submit', (evt) => {
+        const d = evt.detail || {};
+        if (!d.form || !d.actionUrl) return;
+        runPowerFlow(d.form, d.actionUrl, d.submitterName || null, d.submitterValue || null);
+    });
+})();

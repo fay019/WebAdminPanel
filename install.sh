@@ -131,8 +131,10 @@ www-data ALL=(root) NOPASSWD: /usr/sbin/nginx -t, /bin/systemctl reload nginx, \
 /var/www/adminpanel/bin/site_add.sh, /var/www/adminpanel/bin/site_edit.sh, \
 /var/www/adminpanel/bin/site_enable.sh, /var/www/adminpanel/bin/site_disable.sh, \
 /var/www/adminpanel/bin/site_delete.sh, /var/www/adminpanel/bin/sysinfo.sh, \
-/var/www/adminpanel/bin/orphan_delete.sh *, /var/www/adminpanel/bin/php_manage.sh *
+/var/www/adminpanel/bin/orphan_delete.sh *, /var/www/adminpanel/bin/php_manage.sh *, \
+/var/www/adminpanel/bin/power.sh *
 SUDO
+
 sudo chown root:root "$SUDOERS_FILE"
 sudo chmod 440 "$SUDOERS_FILE"
 sudo visudo -c >/dev/null && echo "Sudoers OK"

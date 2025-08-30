@@ -497,6 +497,10 @@ code {
     display: flex;
 }
 
+/* Show/hide driven by aria-hidden to ensure flex centering even if inline styles are set */
+.overlay[aria-hidden="false"] { display: flex !important; }
+.overlay[aria-hidden="true"]  { display: none !important; }
+
 .overlay-card {
     width: min(900px, 92vw);
     background: var(--card);
@@ -543,4 +547,17 @@ code {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
+}
+
+/* --- Icon images: default 60px, 36px on mobile --- */
+.icon-btn {
+    width: 60px;
+    height: 60px;
+}
+
+@media (max-width: 768px) {
+    .icon-btn {
+        width: 36px;
+        height: 36px;
+    }
 }

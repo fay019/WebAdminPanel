@@ -54,11 +54,6 @@ if command -v systemctl >/dev/null 2>&1; then
   nginx=$(systemctl is-active nginx 2>/dev/null || echo "inactive")
 fi
 
-php_fpm83="n/a"
-if command -v systemctl >/dev/null 2>&1; then
-  php_fpm83=$(systemctl is-active php8.3-fpm 2>/dev/null || echo "inactive")
-fi
-
 # --- OS & Kernel ---
 os="n/a"; kernel="n/a"
 if [ -r /etc/os-release ]; then
@@ -152,3 +147,4 @@ echo "disk_www=${disk_www}"
 echo "php_cli=${php_cli}"
 echo "php_fpm_sockets=${php_fpm_sockets}"
 echo "nginx_ver=${nginx_ver}"
+echo "boot_id=$(cat /proc/sys/kernel/random/boot_id)"

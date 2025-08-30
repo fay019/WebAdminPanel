@@ -6,7 +6,6 @@ require_once __DIR__ . '/partials/flash.php';
 // Endpoint AJAX pour le polling sysinfo
 if (isset($_GET['ajax']) && $_GET['ajax'] === 'sysinfo') {
     header('Content-Type: application/json; charset=utf-8');
-    // Renvoie le JSON de sysinfo.sh (NOPASSWD déjà en place)
     $sysDeploy = '/var/www/adminpanel/bin/sysinfo.sh';
     $sysLocal  = __DIR__ . '/bin/sysinfo.sh';
     $sys = file_exists($sysDeploy) ? $sysDeploy : $sysLocal;
@@ -21,7 +20,6 @@ $sysinfo = [
         'disk'     => 'n/a',
 ];
 
-// Récup via script
 $sysDeploy = '/var/www/adminpanel/bin/sysinfo.sh';
 $sysLocal  = __DIR__ . '/bin/sysinfo.sh';
 $sys = file_exists($sysDeploy) ? $sysDeploy : $sysLocal;
@@ -32,7 +30,7 @@ if ($out) {
     }
 }
 
-/* Fallbacks fiables côté PHP pour les 3 métriques qui te manquaient */
+// Fallbacks
 if (empty($sysinfo['processes']) || $sysinfo['processes']==='n/a') {
     $sysinfo['processes'] = trim(shell_exec('ps -e --no-headers | wc -l')) ?: 'n/a';
 }
@@ -41,15 +39,13 @@ if (empty($sysinfo['php_sockets']) || $sysinfo['php_sockets']==='n/a') {
     $sysinfo['php_sockets'] = $socks ? implode(' ', array_map('basename', $socks)) : 'n/a';
 }
 if (empty($sysinfo['nginx_version']) || $sysinfo['nginx_version']==='n/a') {
-    $ver = trim(shell_exec('nginx -v 2>&1')); // sort sur stderr
+    $ver = trim(shell_exec('nginx -v 2>&1'));
     $sysinfo['nginx_version'] = $ver ? preg_replace('/^nginx version:\s*/','',$ver) : 'n/a';
 }
 
-// Statut compact PHP‑FPM (détection dynamique à partir des sockets trouvés)
+// PHP-FPM compact
 $php_fpm_compact = [];
 $seen = [];
-
-// Préférence: utiliser la liste fournie par sysinfo.sh si présente, sinon scanner /run/php
 $socketList = [];
 if (!empty($sysinfo['php_fpm_sockets']) && $sysinfo['php_fpm_sockets'] !== 'n/a') {
     foreach (preg_split('/\s*,\s*/', trim($sysinfo['php_fpm_sockets'])) as $s) {
@@ -60,46 +56,37 @@ if (!empty($sysinfo['php_fpm_sockets']) && $sysinfo['php_fpm_sockets'] !== 'n/a'
         $socketList[] = basename($s);
     }
 }
-
 foreach ($socketList as $sockName) {
-    // Ex: php8.3-fpm.sock  |  php-fpm.sock
     if (!preg_match('/^php(?:(\d+\.\d+))?-fpm\.sock$/', $sockName, $m)) continue;
-    $ver   = $m[1] ?? null;                 // null pour le socket générique
+    $ver   = $m[1] ?? null;
     $label = $ver ? "php{$ver}" : 'php';
-    if (isset($seen[$label])) continue;     // éviter les doublons
+    if (isset($seen[$label])) continue;
 
     $sockPath = "/run/php/{$sockName}";
-    // Les sockets UNIX ne sont pas des "fichiers" réguliers : is_file() renvoie false.
-    // file_exists() fonctionne pour les sockets.
     $sockOk   = file_exists($sockPath);
-
-    // Service à vérifier: phpX.Y-fpm ou php-fpm
     $svcName  = $ver ? "php{$ver}-fpm" : 'php-fpm';
     $svcOk    = (trim(shell_exec("systemctl is-active {$svcName} 2>/dev/null || true")) === 'active');
 
     $php_fpm_compact[] = [
-        'label' => $label,
-        'v'     => $ver ?: '',
-        'ok'    => ($sockOk && $svcOk),
-        'sock'  => $sockOk,
-        'svc'   => $svcOk,
+            'label' => $label,
+            'v'     => $ver ?: '',
+            'ok'    => ($sockOk && $svcOk),
+            'sock'  => $sockOk,
+            'svc'   => $svcOk,
     ];
     $seen[$label] = true;
 }
-
-// Tri naturel par label (php, puis php8.2, php8.3, ...)
-usort($php_fpm_compact, function($a,$b){ return strnatcmp($a['label'], $b['label']); });
-// Si rien détecté, afficher au moins les versions usuelles
+usort($php_fpm_compact, fn($a,$b)=>strnatcmp($a['label'],$b['label']));
 if (!$php_fpm_compact) {
     foreach (['8.2','8.3','8.4'] as $v) {
         $sockOk = file_exists("/run/php/php{$v}-fpm.sock");
         $svcOk  = (trim(shell_exec("systemctl is-active php{$v}-fpm 2>/dev/null || true")) === 'active');
         $php_fpm_compact[] = [
-            'label' => "php{$v}",
-            'v'     => $v,
-            'ok'    => ($sockOk && $svcOk),
-            'sock'  => $sockOk,
-            'svc'   => $svcOk,
+                'label' => "php{$v}",
+                'v'     => $v,
+                'ok'    => ($sockOk && $svcOk),
+                'sock'  => $sockOk,
+                'svc'   => $svcOk,
         ];
     }
 }
@@ -107,8 +94,34 @@ if (!$php_fpm_compact) {
 include __DIR__.'/partials/header.php';
 ?>
     <script>window.SYSINFO_URL = '/dashboard.php?ajax=sysinfo';</script>
+
     <div class="card">
         <h2>Dashboard</h2>
+
+        <!-- Commandes alimentation via ancres cliquables (confirm + POST JS) -->
+        <div class="actions" style="margin:8px 0 16px">
+            <a href="/system_power.php?stream=1"
+               class="icon-link"
+               data-confirm="⚠️ Éteindre la machine dans ~30s ?"
+               data-action="shutdown"
+               data-ajax="1"
+               data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"
+               style="display:inline-block;margin-right:8px">
+                <img src="/public/img/power.svg" alt="Éteindre" title="Éteindre" class="icon-btn" />
+            </a>
+
+            <a href="/system_power.php?stream=1"
+               class="icon-link"
+               data-confirm="🔄 Redémarrer la machine dans ~30s ?"
+               data-action="reboot"
+               data-ajax="1"
+               data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"
+               style="display:inline-block">
+                <img src="/public/img/reload.svg" alt="Redémarrer" title="Redémarrer" class="icon-btn" />
+            </a>
+        </div>
+
+        <?php show_flash(); ?>
 
         <div class="metrics">
             <div class="metric">
@@ -116,25 +129,21 @@ include __DIR__.'/partials/header.php';
                 <div class="value"><?= $sitesCount ?></div>
             </div>
 
-            <!-- Température CPU -->
             <div class="card">
                 <div class="small">CPU Temp</div>
                 <div class="value big gray" id="cpuTempVal">n/a</div>
             </div>
 
-            <!-- RAM -->
             <div class="card">
                 <div class="small">RAM</div>
                 <div class="value gray" id="ramVal">n/a</div>
             </div>
 
-            <!-- Uptime -->
             <div class="metric">
                 <h4>Uptime</h4>
                 <div class="value smallmono"><?= htmlspecialchars($sysinfo['uptime'] ?? 'n/a') ?></div>
             </div>
 
-            <!-- Charge CPU -->
             <div class="card">
                 <div class="small">CPU Load</div>
                 <div class="value gray" id="cpuLoadVal">n/a</div>
@@ -142,7 +151,7 @@ include __DIR__.'/partials/header.php';
 
             <div class="metric">
                 <h4>Disque</h4>
-                <div class="value smallmono"><?= htmlspecialchars($sysinfo['disk']) ?></div>
+                <div class="value smallmono"><?= htmlspecialchars($sysinfo['disk'] ?? 'n/a') ?></div>
             </div>
 
             <div class="metric">
@@ -190,11 +199,10 @@ include __DIR__.'/partials/header.php';
             </div>
 
             <div class="metric">
-                <h4>PHP‑FPM</h4>
+                <h4>PHP-FPM</h4>
                 <div class="chip-row">
                     <?php foreach ($php_fpm_compact as $m):
-                        $title = sprintf(
-                                "%s — socket: %s — service: %s",
+                        $title = sprintf("%s — socket: %s — service: %s",
                                 $m['label'],
                                 $m['sock'] ? 'oui' : 'non',
                                 $m['svc']  ? 'actif' : 'inactif'
@@ -205,14 +213,31 @@ include __DIR__.'/partials/header.php';
                               data-tip="<?= htmlspecialchars($title) ?>"
                               title="<?= htmlspecialchars($title) ?>">
             <?= htmlspecialchars($m['label']) ?>
-        </span>
+          </span>
                     <?php endforeach; ?>
                 </div>
             </div>
 
             <div class="metric">
                 <h4>Version Nginx</h4>
-                <div class="value smallmono"><?= htmlspecialchars($sysinfo['nginx_version']) ?></div>
+                <div class="value smallmono"><?= htmlspecialchars($sysinfo['nginx_version'] ?? 'n/a') ?></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay alimentation -->
+    <div class="overlay" id="powerOverlay" aria-hidden="true" style="display:none">
+        <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="powerTitle">
+            <div class="overlay-header">
+                <div class="ok-dot" style="background:#60a5fa"></div>
+                <h3 class="overlay-title" id="powerTitle">Commande en cours…</h3>
+            </div>
+            <div class="overlay-body">
+                <div class="small" id="powerHint">Envoi de la commande…</div>
+                <pre class="pre-log" id="powerLog"></pre>
+            </div>
+            <div class="overlay-footer">
+                <button type="button" class="btn" id="powerClose" disabled>Fermer</button>
             </div>
         </div>
     </div>

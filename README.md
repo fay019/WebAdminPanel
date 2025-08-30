@@ -24,6 +24,8 @@ Mini application PHP (sans framework) pour gérer les vhosts Nginx et sélection
   - Modales de confirmation thémées
 - 🛠️ Actions Nginx
   - Tester `nginx -t` et Recharger `systemctl reload nginx` (sorties affichées)
+- ⚡ Alimentation système
+  - Boutons Éteindre / Redémarrer le Raspberry Pi (sudo NOPASSWD via bin/power.sh, confirmation + stream des sorties)
 - 📋 Tableau des sites avec actions (Éditer / Activer / Désactiver / Supprimer / Supprimer + Dossier)
 - 🧹 Orphelins
   - Détection de `/var/www/*` non référencés et dossiers `*.old.TIMESTAMP`
@@ -37,8 +39,9 @@ Mini application PHP (sans framework) pour gérer les vhosts Nginx et sélection
   - Audit des actions dans `logs/panel.log` + table `audit`
 
 ## 🧭 Navigation (UI)
-- Dashboard: `/dashboard.php` — métriques système (temp CPU, RAM, load, disque, sockets PHP‑FPM, version Nginx, etc.)
+- Dashboard: `/dashboard.php` — métriques système (temp CPU, RAM, load, disque, sockets PHP‑FPM, version Nginx, etc.) + boutons Éteindre/Redémarrer
 - Système PHP: `/php_manage.php` — lister/installer/supprimer/redémarrer PHP‑FPM 7.4–8.4 (via sudo + APT Sury)
+- Alimentation: `/system_power.php` — page dédiée avec boutons Éteindre / Redémarrer (confirmation + stream)
 - Sites: `/sites_list.php` — tableau des sites + actions
 - Nouveau site: `/site_new.php`
 - Éditer: `/site_edit.php?id=...`
@@ -55,6 +58,7 @@ Mini application PHP (sans framework) pour gérer les vhosts Nginx et sélection
   - install <ver> (ex: 8.2 | 8.3 | 8.4)
   - remove <ver>
   - restart <ver>
+- power.sh shutdown|reboot — déclenche l'arrêt ou le redémarrage via sudo
 - site_add.sh <name> <server_names> <root> <php_version> <max_upload> <with_logs> [reset_root]
 - site_edit.sh <old_name> <new_name> <server_names> <root> <max_upload> <with_logs>
 - site_enable.sh <name>
