@@ -4,6 +4,8 @@ require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/csrf.php';
 require_once __DIR__ . '/partials/flash.php';
 
+migrate();
+
 $id = (int)($_GET['id'] ?? 0);
 $st = db()->prepare('SELECT * FROM users WHERE id=:id'); $st->execute([':id'=>$id]); $user=$st->fetch();
 if(!$user){ http_response_code(404); die('Utilisateur introuvable'); }
@@ -13,6 +15,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $action = $_POST['action'] ?? '';
     if($action==='save_profile'){
         $username = trim($_POST['username'] ?? '');
+        $notesRaw = trim((string)($_POST['notes'] ?? ''));
+        $notes = $notesRaw === '' ? null : mb_substr($notesRaw, 0, 1000);
         $err=[];
         if(strlen($username)<3) $err[]='Nom trop court (min 3).';
         if($username!==$user['username']){
@@ -20,8 +24,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if($chk->fetchColumn()>0) $err[]='Nom déjà pris.';
         }
         if(!$err){
-            db()->prepare('UPDATE users SET username=:u WHERE id=:id')->execute([':u'=>$username, ':id'=>$id]);
-            audit('user.update',[ 'from'=>$user['username'], 'to'=>$username ]);
+            db()->prepare('UPDATE users SET username=:u, notes=:n WHERE id=:id')->execute([':u'=>$username, ':n'=>$notes, ':id'=>$id]);
+            audit('user.update',[ 'from'=>$user['username'], 'to'=>$username, 'notes_before'=>$user['notes'] ?? null, 'notes_after'=>$notes ]);
             if($user['username']===current_user()) $_SESSION['user']=$username;
             flash('ok','Utilisateur mis à jour.');
             header('Location: /users_list.php'); exit;
@@ -53,6 +57,8 @@ include __DIR__ . '/partials/header.php';
     <input type="hidden" name="action" value="save_profile">
     <label>Nom d’utilisateur</label>
     <input name="username" required minlength="3" value="<?= htmlspecialchars($_POST['username'] ?? $user['username']) ?>">
+    <label>Notes (optionnel)</label>
+    <textarea name="notes" maxlength="1000" rows="4" placeholder="Mémo interne (max 1000 caractères)"><?= htmlspecialchars($_POST['notes'] ?? ($user['notes'] ?? '')) ?></textarea>
     <div style="margin-top:10px">
       <button class="btn primary">Enregistrer</button>
       <a class="btn" href="/users_list.php">Retour</a>

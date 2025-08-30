@@ -216,37 +216,40 @@ include __DIR__ . '/partials/header.php';
 
         <h3 style="margin-top:16px">Versions détectées</h3>
         <div class="table-responsive">
-            <table class="table">
-            <tr>
-                <th>Version</th>
-                <th>Socket</th>
-                <th>Service</th>
-                <th>Actions</th>
-            </tr>
+            <table class="tbl tbl--hover tbl--sticky" role="table" data-default-sort="version" data-default-dir="desc">
+              <thead>
+                <tr>
+                  <th class="col-name is-sortable" data-sort-key="version" scope="col">Version</th>
+                  <th class="col-status" scope="col">Socket</th>
+                  <th class="col-status" scope="col">Service</th>
+                  <th class="col-actions" scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
             <?php if (!$rows): ?>
                 <tr>
                     <td colspan="4" class="small">Aucune version PHP-FPM détectée.</td>
                 </tr>
             <?php else: foreach ($rows as $r): ?>
                 <tr>
-                    <td><strong>php<?= htmlspecialchars($r['ver']) ?></strong></td>
-                    <td>
-          <span class="badge <?= $r['socket'] ? 'ok' : 'err' ?>">
-            <?= $r['socket'] ? 'présent' : 'absent' ?>
-          </span>
+                    <td class="col-name" data-label="Version" data-sort="<?= htmlspecialchars($r['ver']) ?>"><strong>php<?= htmlspecialchars($r['ver']) ?></strong></td>
+                    <td class="col-status" data-label="Socket">
+                      <span class="badge <?= $r['socket'] ? 'ok' : 'err' ?>">
+                        <?= $r['socket'] ? 'présent' : 'absent' ?>
+                      </span>
                     </td>
-                    <td>
-          <span class="badge <?= $r['service'] ? 'ok' : 'err' ?>">
-            <?= $r['service'] ? 'actif' : 'inactif' ?>
-          </span>
+                    <td class="col-status" data-label="Service">
+                      <span class="badge <?= $r['service'] ? 'ok' : 'err' ?>">
+                        <?= $r['service'] ? 'actif' : 'inactif' ?>
+                      </span>
                     </td>
-                    <td class="actions">
-                        <form method="post" style="display:inline">
+                    <td class="col-actions" data-label="Actions">
+                        <form method="post">
                             <?= csrf_input() ?>
                             <input type="hidden" name="version" value="<?= htmlspecialchars($r['ver']) ?>">
                             <button class="btn" name="action" value="restart">Redémarrer</button>
                         </form>
-                        <form method="post" style="display:inline">
+                        <form method="post">
                             <?= csrf_input() ?>
                             <input type="hidden" name="version" value="<?= htmlspecialchars($r['ver']) ?>">
                             <button class="btn danger" name="action" value="remove"
@@ -257,6 +260,7 @@ include __DIR__ . '/partials/header.php';
                     </td>
                 </tr>
             <?php endforeach; endif; ?>
+              </tbody>
             </table>
         </div>
     </div>

@@ -9,8 +9,10 @@ require_once __DIR__ . '/../lib/csrf.php';
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Mini Web Panel</title>
     <link rel="stylesheet" href="/public/css/style.css">
+    <link rel="stylesheet" href="/public/css/tables.css">
     <script src="/public/js/app.js" defer></script>
     <script src="/public/js/modules/passgen.js" defer></script>
+    <script src="/public/js/tables.js" defer></script>
 </head>
 <body>
 <div class="container">

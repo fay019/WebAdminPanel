@@ -17,6 +17,7 @@ function migrate(): void {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
+        notes TEXT NULL,
         created_at TEXT NOT NULL
     )");
     $pdo->exec("CREATE TABLE IF NOT EXISTS sites(
@@ -38,6 +39,14 @@ function migrate(): void {
         payload TEXT,
         created_at TEXT NOT NULL
     )");
+
+    // Backward-compatible migration: add 'notes' column if DB was created before this field
+    try {
+        $pdo->exec("ALTER TABLE users ADD COLUMN notes TEXT NULL");
+    } catch (Exception $e) {
+        // Ignore if column already exists (SQLite raises an error we can safely swallow)
+    }
+
     // Ensure case-insensitive uniqueness on usernames (SQLite NOCASE)
     try {
         $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS users_username_nocase ON users(username COLLATE NOCASE)");

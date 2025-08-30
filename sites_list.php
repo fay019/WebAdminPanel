@@ -43,16 +43,30 @@ include __DIR__ . '/partials/header.php';
         <?php show_flash(); ?>
 
         <div class="table-responsive">
-            <table class="table">
-                <tr><th>Nom</th><th>Server Names</th><th>Root</th><th>PHP</th><th>État</th><th>Actions</th></tr>
+            <table class="tbl tbl--hover tbl--sticky" role="table" data-default-sort="name" data-default-dir="asc">
+              <thead>
+                <tr>
+                  <th class="col-name is-sortable" data-sort-key="name" scope="col">Nom</th>
+                  <th class="col-wide" scope="col">Server Names</th>
+                  <th class="col-wide" scope="col">Root</th>
+                  <th class="col-status" scope="col">PHP</th>
+                  <th class="col-status" scope="col">État</th>
+                  <th class="col-actions" scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
                 <?php foreach ($sites as $s): ?>
                 <tr>
-                    <td><strong><?= htmlspecialchars($s['name']) ?></strong></td>
-                    <td><?= htmlspecialchars($s['server_names']) ?></td>
-                    <td class="small"><?= htmlspecialchars($s['root']) ?></td>
-                    <td><span class="badge"><?= htmlspecialchars($s['php_version']) ?></span></td>
-                    <td><?= $s['enabled'] ? '<span class="badge ok">activé</span>' : '<span class="badge err">désactivé</span>' ?></td>
-                    <td class="actions">
+                    <td class="col-name" data-label="Nom"><strong><?= htmlspecialchars($s['name']) ?></strong></td>
+                    <td class="col-wide" data-label="Server Names">
+                      <span class="text-ellipsis" data-tip="<?= htmlspecialchars($s['server_names']) ?>" title="<?= htmlspecialchars($s['server_names']) ?>"><?= htmlspecialchars($s['server_names']) ?></span>
+                    </td>
+                    <td class="col-wide" data-label="Root">
+                      <span class="text-ellipsis small" data-tip="<?= htmlspecialchars($s['root']) ?>" title="<?= htmlspecialchars($s['root']) ?>"><?= htmlspecialchars($s['root']) ?></span>
+                    </td>
+                    <td class="col-status" data-label="PHP"><span class="badge"><?= htmlspecialchars($s['php_version']) ?></span></td>
+                    <td class="col-status" data-label="État"><?= $s['enabled'] ? '<span class="badge ok">activé</span>' : '<span class="badge err">désactivé</span>' ?></td>
+                    <td class="col-actions" data-label="Actions">
                         <a class="btn" href="/site_edit.php?id=<?= (int)$s['id'] ?>">Éditer</a>
                         <?php if ($s['enabled']): ?>
                             <a class="btn" data-confirm="Désactiver ce site ?" href="/site_toggle.php?a=disable&id=<?= (int)$s['id'] ?>&csrf=<?= csrf_token() ?>">Désactiver</a>
@@ -71,10 +85,11 @@ include __DIR__ . '/partials/header.php';
                         </a>
                     </td>
                 </tr>
-            <?php endforeach; ?>
-            <?php if (!$sites): ?>
+                <?php endforeach; ?>
+                <?php if (!$sites): ?>
                 <tr><td colspan="6" class="small">Aucun site pour l’instant.</td></tr>
-            <?php endif; ?>
+                <?php endif; ?>
+              </tbody>
             </table>
         </div>
     </div>
@@ -113,13 +128,22 @@ include __DIR__ . '/partials/header.php';
     <div class="card">
         <h3>🧹 Dossiers orphelins</h3>
         <div class="table-responsive">
-            <table class="table">
-                <tr><th>Nom</th><th>Chemin</th><th>Action</th></tr>
+            <table class="tbl tbl--hover tbl--sticky" role="table" data-default-sort="name" data-default-dir="asc">
+              <thead>
+                <tr>
+                  <th class="col-name is-sortable" data-sort-key="name" scope="col">Nom</th>
+                  <th class="col-wide" scope="col">Chemin</th>
+                  <th class="col-actions" scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody>
                 <?php foreach ($orphans as $o): ?>
                 <tr>
-                    <td><?= htmlspecialchars($o['name']) ?></td>
-                    <td class="small"><?= htmlspecialchars($o['path']) ?></td>
-                    <td>
+                    <td class="col-name" data-label="Nom"><span class="text-ellipsis" title="<?= htmlspecialchars($o['name']) ?>"><?= htmlspecialchars($o['name']) ?></span></td>
+                    <td class="col-wide" data-label="Chemin">
+                      <span class="text-ellipsis small" data-tip="<?= htmlspecialchars($o['path']) ?>" title="<?= htmlspecialchars($o['path']) ?>"><?= htmlspecialchars($o['path']) ?></span>
+                    </td>
+                    <td class="col-actions" data-label="Action">
                         <a class="btn danger"
                            data-confirm="Supprimer définitivement le dossier « <?= htmlspecialchars($o['name']) ?> » ?"
                            href="/orphan_delete.php?dir=<?= urlencode($o['path']) ?>&csrf=<?= csrf_token() ?>">
@@ -127,7 +151,8 @@ include __DIR__ . '/partials/header.php';
                         </a>
                     </td>
                 </tr>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+              </tbody>
             </table>
         </div>
         <div class="small">⚠️ Supprime uniquement le répertoire. Pas d’entrée DB ni de conf Nginx.</div>

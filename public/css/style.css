@@ -52,16 +52,50 @@ a {
     margin-bottom: 16px
 }
 
-.brand { display:flex; align-items:center; gap:8px }
-.brand .brand-text { display:flex; flex-direction:column }
-.logo { width:28px; height:28px }
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 8px
+}
 
-.nav { display:flex; align-items:center; gap:12px; }
-.nav a { margin-right: 0 }
+.brand .brand-text {
+    display: flex;
+    flex-direction: column
+}
+
+.logo {
+    width: 28px;
+    height: 28px
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nav a {
+    margin-right: 0
+}
 
 /* Bouton hamburger (mobile) */
-.nav-toggle { display:none; background:none; border:0; padding:6px; margin-right:8px; cursor:pointer }
-.nav-toggle .bar { display:block; width:22px; height:2px; background: var(--text); margin:4px 0; border-radius:2px }
+.nav-toggle {
+    display: none;
+    background: none;
+    border: 0;
+    padding: 6px;
+    margin-right: 8px;
+    cursor: pointer
+}
+
+.nav-toggle .bar {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--text);
+    margin: 4px 0;
+    border-radius: 2px
+}
 
 .card {
     background: var(--card);
@@ -72,15 +106,6 @@ a {
     box-shadow: 0 3px 10px rgba(0, 0, 0, .2)
 }
 
-.table {
-    width: 100%;
-    border-collapse: collapse
-}
-
-.table th, .table td {
-    padding: 10px;
-    border-bottom: 1px solid #253154
-}
 
 .badge {
     display: inline-block;
@@ -478,19 +503,52 @@ code {
 
 /* --- Responsive nav --- */
 @media (max-width: 768px) {
-    .header { flex-wrap: wrap; gap: 10px }
-    .nav-toggle { display: inline-block }
-    .nav { width: 100%; order: 2; display: none; flex-direction: column; align-items: stretch; gap: 8px; padding-top: 8px }
-    .nav.show { display: flex }
-    .nav a { display:block; padding:10px 12px; background:#0e1627; border:1px solid #22324d; border-radius:10px }
-    .nav a.btn { text-align:center }
+    .header {
+        flex-wrap: wrap;
+        gap: 10px
+    }
+
+    .nav-toggle {
+        display: inline-block
+    }
+
+    .nav {
+        width: 100%;
+        order: 2;
+        display: none;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding-top: 8px
+    }
+
+    .nav.show {
+        display: flex
+    }
+
+    .nav a {
+        display: block;
+        padding: 10px 12px;
+        background: #0e1627;
+        border: 1px solid #22324d;
+        border-radius: 10px
+    }
+
+    .nav a.btn {
+        text-align: center
+    }
+
     /* Forms: stack fields on small screens */
-    .form-row { grid-template-columns: 1fr; }
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
     /* Make action button groups wrap nicely */
-    .actions { flex-wrap: wrap; gap: 8px }
-    /* Tables: allow horizontal scroll within container */
-    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .table { min-width: 640px }
+    .actions {
+        flex-wrap: wrap;
+        gap: 8px
+    }
+
 }
 
 .overlay.show {
@@ -498,8 +556,13 @@ code {
 }
 
 /* Show/hide driven by aria-hidden to ensure flex centering even if inline styles are set */
-.overlay[aria-hidden="false"] { display: flex !important; }
-.overlay[aria-hidden="true"]  { display: none !important; }
+.overlay[aria-hidden="false"] {
+    display: flex !important;
+}
+
+.overlay[aria-hidden="true"] {
+    display: none !important;
+}
 
 .overlay-card {
     width: min(900px, 92vw);
@@ -562,6 +625,46 @@ code {
     }
 }
 
+/* --- Tables: utility classes for better UX on lists --- */
+.nowrap {
+    white-space: nowrap;
+}
+
+.ellip {
+    display: inline-block;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
+.muted {
+    color: #94a3b8;
+}
+
+.table .col-id {
+    width: 64px;
+    white-space: nowrap;
+}
+
+.table .col-actions {
+    white-space: nowrap;
+}
+
+.table .col-notes {
+    max-width: 520px;
+}
+
+@media (max-width: 768px) {
+    .table .col-notes {
+        max-width: 200px;
+    }
+
+    .ellip {
+        max-width: 200px;
+    }
+}
 
 /* --- Password tools (generator) --- */
 .pw-tools {
@@ -571,11 +674,13 @@ code {
     margin-top: 8px;
     flex-wrap: wrap;
 }
+
 .pw-tools .btn.small {
     padding: 6px 10px;
     font-size: 12px;
     border-radius: 8px;
 }
+
 .pw-strength {
     font-size: 12px;
     padding: 4px 8px;
@@ -584,8 +689,148 @@ code {
     background: #0b1220;
     color: #cbd5e1;
 }
-.pw-strength.pw-s0 { color: #fecaca; border-color: #7f1d1d; background: rgba(239, 68, 68, .12); }
-.pw-strength.pw-s1 { color: #fde68a; border-color: #854d0e; background: rgba(234, 179, 8, .12); }
-.pw-strength.pw-s2 { color: #bfdbfe; border-color: #1e40af; background: rgba(96, 165, 250, .12); }
-.pw-strength.pw-s3 { color: #93c5fd; border-color: #1e3a8a; background: rgba(96, 165, 250, .18); }
-.pw-strength.pw-s4 { color: #bbf7d0; border-color: #14532d; background: rgba(34, 197, 94, .12); }
+
+.pw-strength.pw-s0 {
+    color: #fecaca;
+    border-color: #7f1d1d;
+    background: rgba(239, 68, 68, .12);
+}
+
+.pw-strength.pw-s1 {
+    color: #fde68a;
+    border-color: #854d0e;
+    background: rgba(234, 179, 8, .12);
+}
+
+.pw-strength.pw-s2 {
+    color: #bfdbfe;
+    border-color: #1e40af;
+    background: rgba(96, 165, 250, .12);
+}
+
+.pw-strength.pw-s3 {
+    color: #93c5fd;
+    border-color: #1e3a8a;
+    background: rgba(96, 165, 250, .18);
+}
+
+.pw-strength.pw-s4 {
+    color: #bbf7d0;
+    border-color: #14532d;
+    background: rgba(34, 197, 94, .12);
+}
+
+
+/* --- Users table UX improvements --- */
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 1.2;
+    border-radius: 8px;
+}
+
+
+/* Compact actions column: inline, small gap, shrink-to-content */
+.table .col-actions {
+    min-width: 120px; /* largeur minimum pour respirer */
+    white-space: nowrap;
+    text-align: right;
+}
+
+.table .col-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.table .col-actions form {
+    display: inline;
+}
+
+.table .col-actions .btn {
+    margin: 0;
+}
+
+/* Column widths and layout */
+.table .col-id {
+    width: 64px;
+    text-align: right;
+}
+
+.table .col-name {
+    width: auto;
+}
+
+.table .col-notes {
+    max-width: 520px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table .col-date {
+    width: 1%;
+    white-space: nowrap;
+}
+
+/* Responsive: keep Notes visible on mobile (compact with ellipsis) */
+@media (max-width: 768px) {
+    th.col-notes, td.col-notes { display: table-cell; }
+    .table .col-notes { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+
+/* --- Users table layout/theming (readability + balance) --- */
+.table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table thead th {
+    background: #0e1627;
+    border-bottom: 1px solid #22324d;
+    color: #cbd5e1;
+}
+
+.table tbody tr + tr td {
+    border-top: 1px solid #22324d;
+}
+
+/* Monospace utility for notes/dates and tabular numbers */
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Center notes/date columns and keep ellipsis behavior */
+.table .col-notes, .table .col-date {
+    text-align: center;
+}
+
+/* Mobile: show secondary info under name, keep actions at right */
+.name-sub {
+    display: none;
+}
+
+.name-sub .sep {
+    opacity: .6;
+    padding: 0 4px;
+}
+
+@media (max-width: 768px) {
+    /* Keep Notes visible on mobile; only hide the Date column */
+    th.col-date, td.col-date { display: none; }
+
+    /* Avoid duplicating content: keep .name-sub hidden now that Notes stays visible */
+    .name-sub { display: none; }
+}
+
+
+/* --- Scrolling table wrapper for small screens --- */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 768px) {
+  .table-wrap .table { min-width: 640px; }
+}

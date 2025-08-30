@@ -4,11 +4,16 @@ require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/csrf.php';
 require_once __DIR__ . '/partials/flash.php';
 
+migrate();
+
 if($_SERVER['REQUEST_METHOD']==='POST'){
     csrf_check();
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm  = $_POST['confirm'] ?? '';
+    $notesRaw = trim((string)($_POST['notes'] ?? ''));
+    // Normalize notes: limit to 1000 chars, empty string -> NULL
+    $notes = $notesRaw === '' ? null : mb_substr($notesRaw, 0, 1000);
     $err=[];
     if(strlen($username)<3) $err[]='Nom trop court (min 3).';
     if($password!==$confirm) $err[]='Confirmation du mot de passe différente.';
@@ -19,9 +24,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $st=db()->prepare('SELECT COUNT(*) FROM users WHERE username=:u COLLATE NOCASE'); $st->execute([':u'=>$username]);
     if($st->fetchColumn()>0) $err[]='Nom déjà pris.';
     if(!$err){
-        $st=db()->prepare('INSERT INTO users(username,password_hash,created_at) VALUES(:u,:p,:c)');
-        $st->execute([':u'=>$username, ':p'=>password_hash($password,PASSWORD_BCRYPT), ':c'=>date('c')]);
-        audit('user.create',['username'=>$username]);
+        $st=db()->prepare('INSERT INTO users(username,password_hash,notes,created_at) VALUES(:u,:p,:n,:c)');
+        $st->execute([':u'=>$username, ':p'=>password_hash($password,PASSWORD_BCRYPT), ':n'=>$notes, ':c'=>date('c')]);
+        audit('user.create',['username'=>$username, 'notes'=>$notes]);
         flash('ok','Utilisateur créé.');
         header('Location: /users_list.php'); exit;
     } else {
@@ -47,6 +52,8 @@ include __DIR__ . '/partials/header.php';
       <button type="button" class="btn small" data-action="copy" aria-label="Copier le mot de passe">Copier</button>
       <span class="pw-strength" data-role="strength" aria-live="polite">Force: —</span>
     </div>
+    <label>Notes (optionnel)</label>
+    <textarea name="notes" maxlength="1000" rows="4" placeholder="Mémo interne (max 1000 caractères)"><?= htmlspecialchars($_POST['notes'] ?? '') ?></textarea>
     <div style="margin-top:10px">
       <button class="btn primary">Créer</button>
       <a class="btn" href="/users_list.php">Annuler</a>
