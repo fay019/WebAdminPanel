@@ -42,9 +42,10 @@ include __DIR__ . '/partials/header.php';
 
         <?php show_flash(); ?>
 
-        <table class="table">
-            <tr><th>Nom</th><th>Server Names</th><th>Root</th><th>PHP</th><th>État</th><th>Actions</th></tr>
-            <?php foreach ($sites as $s): ?>
+        <div class="table-responsive">
+            <table class="table">
+                <tr><th>Nom</th><th>Server Names</th><th>Root</th><th>PHP</th><th>État</th><th>Actions</th></tr>
+                <?php foreach ($sites as $s): ?>
                 <tr>
                     <td><strong><?= htmlspecialchars($s['name']) ?></strong></td>
                     <td><?= htmlspecialchars($s['server_names']) ?></td>
@@ -74,7 +75,8 @@ include __DIR__ . '/partials/header.php';
             <?php if (!$sites): ?>
                 <tr><td colspan="6" class="small">Aucun site pour l’instant.</td></tr>
             <?php endif; ?>
-        </table>
+            </table>
+        </div>
     </div>
 
     <div class="card">
@@ -110,9 +112,10 @@ include __DIR__ . '/partials/header.php';
 <?php if ($orphans): ?>
     <div class="card">
         <h3>🧹 Dossiers orphelins</h3>
-        <table class="table">
-            <tr><th>Nom</th><th>Chemin</th><th>Action</th></tr>
-            <?php foreach ($orphans as $o): ?>
+        <div class="table-responsive">
+            <table class="table">
+                <tr><th>Nom</th><th>Chemin</th><th>Action</th></tr>
+                <?php foreach ($orphans as $o): ?>
                 <tr>
                     <td><?= htmlspecialchars($o['name']) ?></td>
                     <td class="small"><?= htmlspecialchars($o['path']) ?></td>
@@ -125,7 +128,8 @@ include __DIR__ . '/partials/header.php';
                     </td>
                 </tr>
             <?php endforeach; ?>
-        </table>
+            </table>
+        </div>
         <div class="small">⚠️ Supprime uniquement le répertoire. Pas d’entrée DB ni de conf Nginx.</div>
     </div>
 <?php endif; ?>

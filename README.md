@@ -1,6 +1,10 @@
 # Mini Web Panel • Nginx + PHP-FPM (Raspberry Pi)
 
-[![Debian 12](https://img.shields.io/badge/Debian-12-red?logo=debian)](#) [![Nginx](https://img.shields.io/badge/Nginx-1.x-brightgreen?logo=nginx)](#) [![PHP-FPM](https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4-777bb4?logo=php)](#) [![SQLite](https://img.shields.io/badge/DB-SQLite-blue?logo=sqlite)](#)
+[![Debian 12](https://img.shields.io/badge/Debian-12-red?logo=debian)](#)
+[![Nginx](https://img.shields.io/badge/Nginx-1.x-brightgreen?logo=nginx)](#)
+[![PHP-FPM](https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4-777bb4?logo=php)](#)
+[![SQLite](https://img.shields.io/badge/DB-SQLite-blue?logo=sqlite)](#)
+[![Raspberry Pi 5](https://img.shields.io/badge/Raspberry%20Pi-5-green?logo=raspberrypi)](#)
 
 Mini application PHP (sans framework) pour gérer les vhosts Nginx et sélectionner la version PHP‑FPM par site. Cible: Raspberry Pi OS (Debian 12) en LAN, avec authentification obligatoire.
 
@@ -40,6 +44,7 @@ Mini application PHP (sans framework) pour gérer les vhosts Nginx et sélection
 - Éditer: `/site_edit.php?id=...`
 - Activer/Désactiver: `/site_toggle.php?a=enable|disable&id=...`
 - Supprimer: `/site_delete.php?id=...&delete_root=0|1`
+- Utilisateurs: `/users_list.php` — lister, créer, éditer, supprimer des comptes
 - Compte: `/account.php`
 - Connexion/Déconnexion: `/login.php` / `/logout.php`
 
@@ -117,3 +122,10 @@ Un fichier .gitignore adapté est fourni pour éviter de pousser ces artefacts.
 
 ## 📄 Licence
 Projet privé/démonstration. Adapter selon vos besoins.
+
+## 📱 UI responsive
+- Menu hamburger et navigation repliable sur mobile
+- Tables encapsulées dans .table-responsive (défilement horizontal sur petits écrans)
+- Formulaires .form-row qui se stackent <768px
+- Groupes de boutons (actions) qui se replient automatiquement
+- Modales et overlay adaptées aux petits écrans

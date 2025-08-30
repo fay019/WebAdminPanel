@@ -1,18 +1,21 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__.'/lib/auth.php'; require_login();
-require_once __DIR__.'/lib/csrf.php';
-require_once __DIR__.'/partials/flash.php';
+require_once __DIR__ . '/lib/auth.php';
+require_login();
+require_once __DIR__ . '/lib/csrf.php';
+require_once __DIR__ . '/partials/flash.php';
 
 if (!function_exists('run')) {
-    function run(string $cmd): string {
+    function run(string $cmd): string
+    {
         $out = shell_exec($cmd . ' 2>&1');
         return $out === null ? '' : $out;
     }
 }
 
 // --- utilitaire : exécuter une commande en stream texte/plain
-function stream_cmd(string $cmd): void {
+function stream_cmd(string $cmd): void
+{
     header('Content-Type: text/plain; charset=UTF-8');
     header('X-Accel-Buffering: no');     // nginx: désactive le buffering
     header('Cache-Control: no-store');
@@ -27,8 +30,8 @@ function stream_cmd(string $cmd): void {
     echo "[INFO] Astuce: si rien ne s'affiche, vérifiez sudoers (install.sh) et /var/log/nginx/error.log\n\n";
 
     $des = [
-        1 => ['pipe','w'], // stdout
-        2 => ['pipe','w'], // stderr
+            1 => ['pipe', 'w'], // stdout
+            2 => ['pipe', 'w'], // stderr
     ];
     $proc = @proc_open($cmd, $des, $pipes);
     if (!is_resource($proc)) {
@@ -44,8 +47,12 @@ function stream_cmd(string $cmd): void {
     while (true) {
         $out = stream_get_contents($pipes[1]);
         $err = stream_get_contents($pipes[2]);
-        if ($out !== '') { echo $out; }
-        if ($err !== '') { echo $err; }
+        if ($out !== '') {
+            echo $out;
+        }
+        if ($err !== '') {
+            echo $err;
+        }
 
         $status = proc_get_status($proc);
         if (!$status['running']) break;
@@ -73,16 +80,18 @@ function stream_cmd(string $cmd): void {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Déterminer si appel AJAX/stream avant le check CSRF pour ajuster le Content-Type en cas d'erreur
     $isAjax = !empty($_POST['ajax']) || (isset($_GET['stream']) && $_GET['stream'] === '1');
-    if ($isAjax) { header('Content-Type: text/plain; charset=UTF-8'); }
+    if ($isAjax) {
+        header('Content-Type: text/plain; charset=UTF-8');
+    }
     csrf_check();
 
     // On accepte stream forcé par GET (?stream=1) ou via champ POST ajax=1
     $forceStream = (isset($_GET['stream']) && $_GET['stream'] === '1') || !empty($_POST['ajax']);
 
     $action = $_POST['action'] ?? '';
-    $sel    = trim($_POST['version_sel'] ?? '');
+    $sel = trim($_POST['version_sel'] ?? '');
     $custom = trim($_POST['version_custom'] ?? '');
-    $ver    = $custom !== '' ? $custom : $sel;
+    $ver = $custom !== '' ? $custom : $sel;
     if ($ver === '' && isset($_POST['version'])) {
         $ver = trim($_POST['version']);
     }
@@ -94,15 +103,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo "[ERREUR] Version invalide: {$ver}\n";
             exit(1);
         }
-        flash('err', "Version invalide : ".htmlspecialchars($ver));
-        header('Location: /php_manage.php'); exit;
+        flash('err', "Version invalide : " . htmlspecialchars($ver));
+        header('Location: /php_manage.php');
+        exit;
     }
 
     // Commande à exécuter
     $cmd = null;
     // Résoudre le chemin du script bin (prod vs dev)
     $binDeploy = '/var/www/adminpanel/bin/php_manage.sh';
-    $binLocal  = __DIR__ . '/bin/php_manage.sh';
+    $binLocal = __DIR__ . '/bin/php_manage.sh';
     $bin = file_exists($binDeploy) ? $binDeploy : $binLocal;
 
     if ($action === 'install' && $ver !== '') {
@@ -120,20 +130,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit(1);
         }
         flash('err', 'Action manquante ou invalide.');
-        header('Location: /php_manage.php'); exit;
+        header('Location: /php_manage.php');
+        exit;
     }
 
     // Libère le verrou de session si besoin (sécurité)
-    if (session_status() === PHP_SESSION_ACTIVE) { session_write_close(); }
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
 
     // Mode stream (modale)
     if ($forceStream) {
         // libère le verrou de session pour éviter de bloquer d’autres requêtes
-        if (session_status() === PHP_SESSION_ACTIVE) { session_write_close(); }
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
         // Pré-vérification sudo pour messages plus clairs
         $sudoTest = shell_exec('sudo -n true 2>&1');
         if ($sudoTest === null) {
-            echo "[ERREUR] 'sudo' non disponible.\n"; exit(1);
+            echo "[ERREUR] 'sudo' non disponible.\n";
+            exit(1);
         }
         // Tenter un ls sur le binaire pour capter un éventuel refus sudoers
         $check = shell_exec('sudo -n ' . escapeshellarg($bin) . ' --help 2>&1');
@@ -148,26 +164,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Mode normal (flash + redirect)
     $out = shell_exec($cmd . ' 2>&1');
-    $ok  = (is_string($out) && str_starts_with($out, 'OK:'));
+    $ok = (is_string($out) && str_starts_with($out, 'OK:'));
     flash($ok ? 'ok' : 'err', nl2br(htmlspecialchars($out ?? '')), true);
-    header('Location: /php_manage.php'); exit;
+    header('Location: /php_manage.php');
+    exit;
 }
 
 // Lister via le bon binaire (prod ou dev)
 $binDeploy = '/var/www/adminpanel/bin/php_manage.sh';
-$binLocal  = __DIR__ . '/bin/php_manage.sh';
+$binLocal = __DIR__ . '/bin/php_manage.sh';
 $bin = file_exists($binDeploy) ? $binDeploy : $binLocal;
 $json = run('sudo -n ' . escapeshellarg($bin) . ' list --json');
 $rows = json_decode($json, true);
 if (!is_array($rows)) $rows = [];
 
 // Versions courantes proposées par défaut (tu peux en ajouter/supprimer ici)
-$commonChoices = ['7.4','8.0','8.1','8.2','8.3','8.4'];
-$installed = array_map(fn($r)=>$r['ver'], $rows);
+$commonChoices = ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4'];
+$installed = array_map(fn($r) => $r['ver'], $rows);
 // on ne repropose pas celles déjà présentes
 $choices = array_values(array_diff($commonChoices, $installed));
 
-include __DIR__.'/partials/header.php';
+include __DIR__ . '/partials/header.php';
 ?>
     <div class="card">
         <h2>PHP (Système)</h2>
@@ -198,21 +215,29 @@ include __DIR__.'/partials/header.php';
         </div>
 
         <h3 style="margin-top:16px">Versions détectées</h3>
-        <table class="table">
-            <tr><th>Version</th><th>Socket</th><th>Service</th><th>Actions</th></tr>
+        <div class="table-responsive">
+            <table class="table">
+            <tr>
+                <th>Version</th>
+                <th>Socket</th>
+                <th>Service</th>
+                <th>Actions</th>
+            </tr>
             <?php if (!$rows): ?>
-                <tr><td colspan="4" class="small">Aucune version PHP-FPM détectée.</td></tr>
+                <tr>
+                    <td colspan="4" class="small">Aucune version PHP-FPM détectée.</td>
+                </tr>
             <?php else: foreach ($rows as $r): ?>
                 <tr>
                     <td><strong>php<?= htmlspecialchars($r['ver']) ?></strong></td>
                     <td>
-          <span class="badge <?= $r['socket']?'ok':'err' ?>">
-            <?= $r['socket']?'présent':'absent' ?>
+          <span class="badge <?= $r['socket'] ? 'ok' : 'err' ?>">
+            <?= $r['socket'] ? 'présent' : 'absent' ?>
           </span>
                     </td>
                     <td>
-          <span class="badge <?= $r['service']?'ok':'err' ?>">
-            <?= $r['service']?'actif':'inactif' ?>
+          <span class="badge <?= $r['service'] ? 'ok' : 'err' ?>">
+            <?= $r['service'] ? 'actif' : 'inactif' ?>
           </span>
                     </td>
                     <td class="actions">
@@ -232,7 +257,8 @@ include __DIR__.'/partials/header.php';
                     </td>
                 </tr>
             <?php endforeach; endif; ?>
-        </table>
+            </table>
+        </div>
     </div>
     <div class="overlay" id="busyOverlay" aria-hidden="true">
         <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="busyTitle">
@@ -241,7 +267,8 @@ include __DIR__.'/partials/header.php';
                 <h3 class="overlay-title" id="busyTitle">Installation en cours…</h3>
             </div>
             <div class="overlay-body">
-                <div id="busyHint" class="small" style="margin-bottom:8px">Merci de patienter, ne fermez pas la page.</div>
+                <div id="busyHint" class="small" style="margin-bottom:8px">Merci de patienter, ne fermez pas la page.
+                </div>
                 <pre id="busyLog" class="pre-log"></pre>
             </div>
             <div class="overlay-footer">
@@ -249,4 +276,4 @@ include __DIR__.'/partials/header.php';
             </div>
         </div>
     </div>
-<?php include __DIR__.'/partials/footer.php'; ?>
+<?php include __DIR__ . '/partials/footer.php'; ?>

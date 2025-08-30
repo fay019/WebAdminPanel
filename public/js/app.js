@@ -10,10 +10,10 @@
         return true;
     }
 
-    const modal  = document.getElementById('confirm-modal');
-    const msgEl  = modal ? document.getElementById('cm-message') : null;
-    const okBtn  = modal ? document.getElementById('cm-okay')   : null;
-    const cancel = modal ? document.getElementById('cm-cancel')  : null;
+    const modal = document.getElementById('confirm-modal');
+    const msgEl = modal ? document.getElementById('cm-message') : null;
+    const okBtn = modal ? document.getElementById('cm-okay') : null;
+    const cancel = modal ? document.getElementById('cm-cancel') : null;
 
     let lastFocus = null;
 
@@ -41,7 +41,9 @@
 
     if (modal) {
         cancel.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
     }
 
     // API globale (compat rétro de tes onclick="confirmDelete(...)")
@@ -81,6 +83,34 @@
             window.location.href = a.href;
         }
     });
+
+    // Confirmation pour <form data-confirm="...">
+    document.addEventListener('submit', function (e) {
+        const form = e.target.closest('form[data-confirm]');
+        if (!form) return;
+        const msg = form.getAttribute('data-confirm') || 'Confirmer ?';
+        // Empêche l'envoi immédiat
+        e.preventDefault();
+        // Utilise le modal si présent
+        if (typeof openModal === 'function' && openModal(msg)) {
+            if (okBtn) {
+                const onOk = function (ev) {
+                    ev.preventDefault();
+                    okBtn.removeEventListener('click', onOk);
+                    closeModal();
+                    form.submit();
+                };
+                okBtn.addEventListener('click', onOk, {once: true});
+            }
+            return;
+        }
+        // Fallback confirm natif
+        if (typeof fallbackConfirm === 'function') {
+            if (fallbackConfirm(e, msg)) form.submit();
+            return;
+        }
+        if (window.confirm(msg)) form.submit();
+    });
 })();
 // --- Dashboard live sysinfo (polling) ---
 (function () {
@@ -88,7 +118,7 @@
     if (!url) return; // pas sur le dashboard
 
     const elTemp = document.getElementById('cpuTempVal');
-    const elRam  = document.getElementById('ramVal');
+    const elRam = document.getElementById('ramVal');
     const elLoad = document.getElementById('cpuLoadVal');
 
     if (!elTemp && !elRam && !elLoad) return;
@@ -102,7 +132,7 @@
         if (obj && typeof obj === 'object' && 'used_mb' in obj && 'total_mb' in obj) {
             const used = Math.round(obj.used_mb);
             const total = Math.round(obj.total_mb);
-            const pct = obj.percent ? String(obj.percent).replace(/\.0+$/,'') : Math.round(used*100/Math.max(total,1)) + '%';
+            const pct = obj.percent ? String(obj.percent).replace(/\.0+$/, '') : Math.round(used * 100 / Math.max(total, 1)) + '%';
             return `${used}MB / ${total}MB (${pct})`;
         }
         if (typeof obj === 'string') return obj; // ex: "743MB / 16219MB (5%)"
@@ -115,8 +145,8 @@
         text.split(/\r?\n/).forEach(line => {
             const i = line.indexOf('=');
             if (i <= 0) return;
-            const k = line.slice(0, i).trim().toLowerCase().replace(/[^a-z0-9_]+/g,'_');
-            const v = line.slice(i+1).trim();
+            const k = line.slice(0, i).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+            const v = line.slice(i + 1).trim();
             out[k] = v;
         });
         return out;
@@ -124,7 +154,7 @@
 
     // Essaie JSON, sinon retombe sur clé=valeur
     async function fetchSysinfo() {
-        const r = await fetch(url, { cache: 'no-store' });
+        const r = await fetch(url, {cache: 'no-store'});
         if (!r.ok) throw new Error('http ' + r.status);
         const raw = await r.text();
         try {
@@ -152,7 +182,7 @@
         try {
             const data = await fetchSysinfo();
             setText(elTemp, String(pickTemp(data)));
-            setText(elRam,  pickRam(data));
+            setText(elRam, pickRam(data));
             setText(elLoad, String(pickLoad(data)));
         } catch (e) {
             // silencieux
@@ -165,13 +195,31 @@
 
 // --- Install PHP: stream via fetch dans la modale ---
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Nav responsive toggle ---
+    const toggle = document.querySelector('.nav-toggle');
+    const nav = document.getElementById('mainNav');
+    if (toggle && nav) {
+        toggle.addEventListener('click', () => {
+            const isOpen = nav.classList.toggle('show');
+            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+        // Ferme le menu après un clic sur un lien
+        nav.addEventListener('click', (e) => {
+            const a = e.target.closest('a');
+            if (!a) return;
+            if (window.matchMedia('(max-width: 768px)').matches) {
+                nav.classList.remove('show');
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
     const form = document.getElementById('installForm');
     if (!form) return;
 
-    const overlay  = document.getElementById('busyOverlay');
-    const preLog   = document.getElementById('busyLog');
+    const overlay = document.getElementById('busyOverlay');
+    const preLog = document.getElementById('busyLog');
     const btnClose = document.getElementById('busyClose');
-    const titleEl  = document.getElementById('busyTitle');
+    const titleEl = document.getElementById('busyTitle');
 
     function openOverlay(title) {
         if (titleEl && title) titleEl.textContent = title;
@@ -180,13 +228,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (overlay) overlay.style.display = 'block';
         if (btnClose) btnClose.disabled = true;
     }
+
     function endOverlay() {
         if (btnClose) btnClose.disabled = false;
     }
+
     function closeOverlay() {
         overlay?.setAttribute('aria-hidden', 'true');
         if (overlay) overlay.style.display = 'none';
     }
+
     function setOverlayErrorState(on) {
         const dot = overlay?.querySelector('.ok-dot');
         if (!dot || !titleEl) return;
@@ -229,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: fd,
                 credentials: 'same-origin',
-                headers: { 'Accept': 'text/plain' }
+                headers: {'Accept': 'text/plain'}
             });
 
             // Si on a été redirigé ou si le serveur renvoie du HTML
@@ -248,13 +299,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Lire le flux en streaming (text/plain attendu)
-            const reader  = resp.body?.getReader();
+            const reader = resp.body?.getReader();
             const decoder = new TextDecoder();
             let gotAny = false;
             while (reader) {
-                const { value, done } = await reader.read();
+                const {value, done} = await reader.read();
                 if (done) break;
-                const chunk = decoder.decode(value, { stream: true });
+                const chunk = decoder.decode(value, {stream: true});
                 if (chunk) gotAny = true;
                 if (preLog) {
                     preLog.textContent += chunk;
@@ -312,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 form.requestSubmit(installBtn);
             } else {
                 lastSubmitter = installBtn;
-                form.dispatchEvent(new Event('submit', { cancelable: true }));
+                form.dispatchEvent(new Event('submit', {cancelable: true}));
             }
         });
     }
