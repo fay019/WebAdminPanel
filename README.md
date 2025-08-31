@@ -40,7 +40,7 @@ Mini application PHP (sans framework) pour gérer les vhosts Nginx et sélection
 
 ## 🧭 Navigation (UI)
 - Dashboard: `/dashboard.php` — métriques système (temp CPU, RAM, load, disque, sockets PHP‑FPM, version Nginx, etc.) + boutons Éteindre/Redémarrer
-- Système PHP: `/php_manage.php` — lister/installer/supprimer/redémarrer PHP‑FPM 7.4–8.4 (via sudo + APT Sury)
+- Système PHP: `/php_manage.php` — lister/installer/supprimer/redémarrer PHP‑FPM 8.2–8.4 (via sudo + APT Sury)
 - Alimentation: `/system_power.php` — page dédiée avec boutons Éteindre / Redémarrer (confirmation + stream)
 - Sites: `/sites_list.php` — tableau des sites + actions
 - Nouveau site: `/site_new.php`
@@ -100,7 +100,7 @@ Ce que fait `install.sh`:
 - Dossier d’installation: `/var/www/adminpanel`
 - Base SQLite: `data/sites.db`
 - Logs panel: `logs/panel.log`
-- Assets: `public/css/style.css`, `public/js/app.js`, logo `public/img/logo.svg`
+- Assets: `public/css/style.css`, `public/css/tables.css`, `public/js/app.js`, `public/js/tables.js`, logo `public/img/logo.svg`
 - Localisation: `locales/*.php` (fr, en, de, dz)
 
 ## 🛡️ Notes sécurité
@@ -123,6 +123,15 @@ Ce que fait `install.sh`:
 - Le fichier sudoers est généré côté système (/etc/sudoers.d/adminpanel) et ne doit pas être versionné.
 
 Un fichier .gitignore adapté est fourni pour éviter de pousser ces artefacts.
+
+## 🗂️ Aperçu de la structure
+- lib/: auth, csrf, db (SQLite), i18n, validators
+- locales/: fr, en, de, dz
+- public/: assets (css, js, img) + pages d'erreur
+- bin/: scripts CLI (nginx, php-fpm, sites, power, sysinfo)
+- data/: base SQLite (non versionnée en prod)
+- logs/: journaux du panel (non versionnés en prod)
+- *.php à la racine: pages de l'UI (dashboard, sites, utilisateurs, compte, etc.)
 
 ## 📄 Licence
 Projet privé/démonstration. Adapter selon vos besoins.
