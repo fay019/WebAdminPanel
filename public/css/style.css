@@ -71,7 +71,7 @@ a {
 .nav {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 18px;
 }
 
 .nav a {
@@ -501,6 +501,22 @@ code {
     backdrop-filter: blur(2px);
 }
 
+/* --- Menu icons & spacing --- */
+.nav a:not(.btn) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; /* bigger click target on desktop */
+    height: 40px;
+    padding: 0;
+}
+
+.nav .nav-icon {
+    width: 28px;  /* larger icons */
+    height: 28px;
+    display: block;
+}
+
 /* --- Responsive nav --- */
 @media (max-width: 768px) {
     .header {
@@ -532,6 +548,21 @@ code {
         background: #0e1627;
         border: 1px solid #22324d;
         border-radius: 10px
+    }
+
+    /* On mobile, increase icon size and spacing slightly */
+    .nav a:not(.btn) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+    }
+
+    .nav .nav-icon {
+        width: 26px;
+        height: 26px;
     }
 
     .nav a.btn {
