@@ -240,6 +240,37 @@
     });
 })();
 
+// --- Gestion générique des modales ---
+(function () {
+    function hideModal(modal) {
+        if (!modal) return;
+        modal.hidden = true;
+    }
+
+    // Clic sur tout élément avec [data-close-modal]
+    document.addEventListener('click', function (e) {
+        const closeBtn = e.target.closest('[data-close-modal]');
+        if (!closeBtn) return;
+        const modal = closeBtn.closest('.modal');
+        if (modal) hideModal(modal);
+    });
+
+    // Clic sur l’overlay (fond assombri)
+    document.addEventListener('click', function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains('modal')) {
+            hideModal(e.target);
+        }
+    });
+
+    // Touche Échap pour fermer la dernière modale visible
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        const openModals = Array.from(document.querySelectorAll('.modal:not([hidden])'));
+        if (!openModals.length) return;
+        hideModal(openModals[openModals.length - 1]);
+    });
+})();
+
 // --- Dashboard live sysinfo (polling) ---
 (function () {
     const url = window.SYSINFO_URL;
@@ -579,6 +610,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Si c’est un shutdown : on s’attend à ce que la machine tombe et NE revienne pas
         const isShutdown = (fd.get('action') === 'shutdown');
         if (overlay) overlay.dataset.powerMode = isShutdown ? 'shutdown' : 'reboot';
+        // UX: pour le reboot, la page va se recharger automatiquement ⇒ masquer le bouton Fermer
+        if (closeBt) {
+            if (isShutdown) {
+                closeBt.style.display = '';
+            } else {
+                closeBt.style.display = 'none';
+            }
+        }
 
         // Compte à rebours affiché (retardateur ~30s)
         let seconds = 30;
