@@ -1,6 +1,6 @@
 # Mini Web Panel • Nginx + PHP-FPM (Raspberry Pi) V1.0.0
 
-[![GitHub release](https://img.shields.io/github/v/release/DrMikey/adminpanel?logo=github)](https://github.com/DrMikey/adminpanel/releases)
+[![GitHub release](https://img.shields.io/github/v/release/fay019/WebAdminPanel?logo=github)](https://github.com/fay019/WebAdminPanel/releases/)
 [![Debian 12](https://img.shields.io/badge/Debian-12-red?logo=debian)](#)
 [![Nginx](https://img.shields.io/badge/Nginx-1.x-brightgreen?logo=nginx)](#)
 [![PHP-FPM](https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4-777bb4?logo=php)](#)
