@@ -7,7 +7,7 @@ require_once __DIR__ . '/../lib/csrf.php';
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Mini Web Panel</title>
+    <title><?php echo function_exists('__') ? __('app.title') : 'Mini Web Panel'; ?></title>
     <link rel="stylesheet" href="/public/css/style.css">
     <link rel="stylesheet" href="/public/css/tables.css">
     <script src="/public/js/app.js" defer></script>
