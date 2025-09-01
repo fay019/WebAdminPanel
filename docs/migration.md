@@ -77,17 +77,31 @@ Fichiers:
 - Endpoint AJAX: GET /lang?set=fr|en → I18nController@set, renvoie {ok:true, locale:"fr"}. Pas de rechargement nécessaire.
 - Utilisation: laisser les textes en dur pour l’instant; on peut tester __() sur 2–3 libellés.
 
+## Migration php_manage (Étape en cours)
+
+- Contrôleur: App/Controllers/SystemController.php → phpManage() gère GET (affichage) et POST (actions install/remove/restart).
+- Service: App/Services/PhpManageService.php encapsule bin/php_manage.sh (deploy/local), modes list/install/remove/restart et streaming text/plain.
+- Vue: app/Views/system/php_manage.php reprend le HTML/ids/classes legacy, overlay "busy", attributs data-confirm intacts.
+- Routage: GET /php_manage → SystemController@phpManage; POST /php_manage → SystemController@phpManage; Compat legacy: POST /php_manage.php mappé vers la même action.
+- Sécurité: CsrfMiddleware s’applique sur POST (400 si token invalide). Streaming conserve Content-Type: text/plain.
+
+### Tests manuels
+- GET /php_manage → affichage OK, aucun changement visuel.
+- Installer 8.0 via formulaire (stream ?stream=1 + ajax=1) → flux text/plain, overlay se met à jour, fin OK/ERR, fermeture → refresh manuel de la page pour liste à jour.
+- Remove/Restart (POST non-stream) → flash + redirect /php_manage, messages identiques au legacy.
+- POST sans CSRF → 400.
+- Compat: POST /php_manage.php fonctionne.
+- Dashboard inchangé.
+
 ## Étapes suivantes
 
-1) Migrer `php_manage.php` → SystemController@phpManage + vues. Streaming identique.
-2) Migrer `php_manage.php` → SystemController@phpManage + vues. Streaming identique.  
-3) Migrer Sites (list/new/edit/delete) en conservant les mêmes URLs/params pour l’AJAX et les formulaires.  
-4) Migrer Users (list/new/edit) avec validations et notes.  
-5) Introduire Models (User, Site) pour encapsuler l’accès DB.  
-6) Ajouter config/app.php, config/database.php, storage/ (logs, cache).  
-7) Préparer l’i18n: lang/fr.php, lang/en.php et helper __() (déjà ajoutés, non utilisés par défaut).  
-8) Remplacer progressivement les inclusions legacy par des Helpers/Middlewares/Services sans changer le comportement.  
-9) Une fois chaque page validée, mettre en place les redirections définitives depuis les URLs legacy, puis supprimer les fichiers legacy en fin de migration.
+1) Migrer Sites (list/new/edit/delete) en conservant les mêmes URLs/params pour l’AJAX et les formulaires.  
+2) Migrer Users (list/new/edit) avec validations et notes.  
+3) Introduire Models (User, Site) pour encapsuler l’accès DB.  
+4) Ajouter config/app.php, config/database.php, storage/ (logs, cache).  
+5) Préparer l’i18n: lang/fr.php, lang/en.php et helper __() (déjà ajoutés).  
+6) Remplacer progressivement les inclusions legacy par des Helpers/Middlewares/Services sans changer le comportement.  
+7) Une fois chaque page validée, mettre en place les redirections définitives depuis les URLs legacy, puis supprimer les fichiers legacy en fin de migration.
 
 ## Conventions contrôleurs
 
