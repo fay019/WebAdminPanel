@@ -1,4 +1,4 @@
-# Migration vers MVC — Étape 1
+# Migration vers MVC — Étape 1–2
 
 Branche: feature/mvc-refactor (à créer dans Git avant de pousser ces changements)
 
@@ -38,14 +38,17 @@ Le Router renvoie 404/405 explicites:
 
 Remarque: les assets restent sous /public/… (inchangés).
 
-## Middlewares (étape minimale)
+## Middlewares centralisés
 
-Dans public/index.php:
-- Auth: redirige vers /login.php si non connecté (sauf assets et login/logout)
-- CSRF: vérification sur POST via lib/csrf.php (inchangé)
-- Flash: via partials/flash.php (inchangé)
+Pipeline dans public/index.php (sans changement de comportement):
+- App\Middlewares\AuthMiddleware::handle() — redirige vers /login.php si non connecté (sauf assets et login/logout)
+- App\Middlewares\CsrfMiddleware::handle() — vérification CSRF sur POST via lib/csrf.php
+- App\Middlewares\FlashMiddleware::handle() — no-op pour l’instant; placeholder pour homogénéiser la pile
 
-Des Middlewares dédiés (app/Middlewares/AuthMiddleware.php, CsrfMiddleware.php) seront introduits à l’étape suivante et branchés dans le front.
+Fichiers:
+- app/Middlewares/AuthMiddleware.php
+- app/Middlewares/CsrfMiddleware.php
+- app/Middlewares/FlashMiddleware.php
 
 ## Dashboard
 
@@ -66,9 +69,17 @@ Des Middlewares dédiés (app/Middlewares/AuthMiddleware.php, CsrfMiddleware.php
 - Les fichiers legacy ne sont pas supprimés. /dashboard.php continue d’exister.
 - Le routeur sait rediriger GET /dashboard.php → /dashboard lorsqu’on passe par le front (public/index.php), et mappe POST /system_power.php → action power() pour conserver l’endpoint historique.
 
+## Internationalisation (i18n) — Étape 2
+
+- Helper: App/Helpers/I18n.php expose __($key, $replacements=[]).
+- Dictionnaires: lang/fr.php, lang/en.php (quelques clés de test).
+- Persistance: session + cookie 'locale' pendant 1 an.
+- Endpoint AJAX: GET /lang?set=fr|en → I18nController@set, renvoie {ok:true, locale:"fr"}. Pas de rechargement nécessaire.
+- Utilisation: laisser les textes en dur pour l’instant; on peut tester __() sur 2–3 libellés.
+
 ## Étapes suivantes
 
-1) Créer Middlewares dédiés (AuthMiddleware, CsrfMiddleware) et les brancher dans public/index.php.  
+1) Migrer `php_manage.php` → SystemController@phpManage + vues. Streaming identique.
 2) Migrer `php_manage.php` → SystemController@phpManage + vues. Streaming identique.  
 3) Migrer Sites (list/new/edit/delete) en conservant les mêmes URLs/params pour l’AJAX et les formulaires.  
 4) Migrer Users (list/new/edit) avec validations et notes.  
@@ -83,6 +94,29 @@ Des Middlewares dédiés (app/Middlewares/AuthMiddleware.php, CsrfMiddleware.php
 - Nom de fichier: NomController.php (ex: DashboardController.php)
 - Classe: App\\Controllers\\NomController
 - Méthodes d’actions: camelCase (ex: index, sysinfo, power)
+
+## Tests manuels recommandés
+
+1) Connexion
+- Aller sur /login.php, se connecter; vérifier redirection vers /dashboard.
+
+2) Dashboard & sysinfo
+- Ouvrir /dashboard via front (/) et via /dashboard.php (redirigé vers /dashboard).
+- Ouvrir la console réseau: polling /dashboard.php?ajax=sysinfo doit répondre application/json.
+
+3) Power (shutdown/reboot)
+- Cliquer sur les icônes; la modale de confirmation s’ouvre; en OK, un POST est fait sur /system_power.php avec text/plain en retour (overlay alimenté), ou stream si paramètre ?stream=1.
+
+4) CSRF
+- Forcer un POST sans token doit renvoyer 400 CSRF token invalid.
+
+5) i18n (AJAX sans reload)
+- Appeler GET /lang?set=en puis vérifier que document.title passe à "Mini Web Panel" (ou valeur de lang/en.php) au prochain rendu.
+- Ré-appeler /lang?set=fr; vérifier le cookie 'locale' est posé et persistant.
+
+6) 404/405
+- Requête GET vers /dashboard/power → 405 avec en-tête Allow et JSON si Accept=application/json.
+- Route inconnue → 404 avec vue MVC errors/404.
 
 ## Git
 

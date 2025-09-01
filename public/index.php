@@ -21,16 +21,14 @@ require_once __DIR__.'/../app/Helpers/I18n.php';
 $routes = require __DIR__.'/../config/routes.php';
 require_once __DIR__.'/../app/Helpers/Router.php';
 
-// Middlewares minimal: Auth (except login/logout and assets), CSRF on POST
-$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-$publicPaths = ['/login.php','/logout.php','/public/','/public'];
-$asset = str_starts_with($path, '/public/');
-if (!$asset && !in_array($path, ['/login','/login.php','/logout','/logout.php'], true)) {
-    if (!function_exists('is_logged_in') || !is_logged_in()) { header('Location: /login.php'); exit; }
-}
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    if (function_exists('csrf_check')) { csrf_check(); }
-}
+// Middlewares pipeline (centralized)
+use App\Middlewares\AuthMiddleware;
+use App\Middlewares\CsrfMiddleware;
+use App\Middlewares\FlashMiddleware;
+
+AuthMiddleware::handle();
+CsrfMiddleware::handle();
+FlashMiddleware::handle();
 
 $router = new Router($routes);
 $router->dispatch();
