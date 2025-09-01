@@ -25,6 +25,20 @@ class Router {
             exit;
         }
         if (is_string($target)) { $this->invoke($target); return; }
+        // Simple pattern matching for routes with {id}
+        foreach ($table as $path => $handler) {
+            if (!is_string($handler)) continue;
+            if (str_contains($path, '{id}')) {
+                $regex = '#^' . preg_quote($path, '#') . '$#';
+                $regex = str_replace('\{id\}', '(?P<id>\\d+)', $regex);
+                if (preg_match($regex, $uri, $m)) {
+                    // expose id via GET for controller convenience
+                    if (!isset($_GET['id']) && isset($m['id'])) { $_GET['id'] = $m['id']; }
+                    $this->invoke($handler);
+                    return;
+                }
+            }
+        }
 
         // If URI exists for other methods -> 405
         $allowed = [];

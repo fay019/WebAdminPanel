@@ -93,6 +93,32 @@ Fichiers:
 - Compat: POST /php_manage.php fonctionne.
 - Dashboard inchangé.
 
+## Migration Users (Étape en cours)
+
+- Contrôleur: App/Controllers/UsersController.php avec actions index/create/store/edit/update/resetPassword/destroy.
+- Vues: app/Views/users/index.php (liste), create.php (création), edit.php (édition) — copies fidèles du legacy avec mêmes ids/classes.
+- Générateur de mot de passe: public/js/password.js (window.generatePassword) chargé uniquement sur create/edit Users.
+- Champ note: colonne TEXT "notes" conservée/ajoutée via lib/db.php::migrate(); affichage tronqué et tooltip dans la liste.
+- Routage:
+  - GET  /users → UsersController@index
+  - GET  /users/new → UsersController@create
+  - POST /users → UsersController@store
+  - GET  /users/{id}/edit → UsersController@edit
+  - POST /users/{id} → UsersController@update
+  - POST /users/{id}/reset-password → UsersController@resetPassword
+  - POST /users/{id}/delete → UsersController@destroy
+  - Compat legacy: GET /users_list.php → 302 → /users ; GET /user_new.php → 302 → /users/new ; GET /user_edit.php?id=… → UsersController@edit ; POST /user_edit.php → UsersController@update ; POST /users_list.php → UsersController@destroy
+- CSRF/Flash/Auth inchangés (middlewares + partials).
+- i18n: utilisation de __() pour 1–2 libellés (titre Users), le reste inchangé.
+
+### Tests manuels Users
+- Liste: même colonnes/UX; bouton Éditer; suppression avec data-confirm; flash OK.
+- Création: validations identiques (messages exacts), flash OK, redirection vers /users.
+- Édition: update OK; reset password OK (validations identiques), redirection vers /users; session mise à jour si renommage du user courant.
+- Note: saisie/édition/affichage tronqué + tooltip; mobile intact.
+- Générateur: clique "Générer" remplit password+confirm; aucun conflit avec public/js/app.js.
+- CSRF: POST sans token → 400.
+
 ## Étapes suivantes
 
 1) Migrer Sites (list/new/edit/delete) en conservant les mêmes URLs/params pour l’AJAX et les formulaires.  
