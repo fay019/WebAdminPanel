@@ -3,7 +3,7 @@ namespace App\Helpers;
 class Response {
     public static function view(string $view, array $data = []): void {
         extract($data, EXTR_SKIP);
-        $base = __DIR__.'/../../app/Views/';
+        $base = __DIR__.'/../Views/';
         $viewFile = $base . $view . '.php';
         $layout = $base . 'layouts/layout.php';
         if (!file_exists($viewFile)) { http_response_code(500); echo 'View not found'; return; }

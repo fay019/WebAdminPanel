@@ -15,6 +15,8 @@ spl_autoload_register(function($class){
 require_once __DIR__.'/../lib/auth.php';
 require_once __DIR__.'/../lib/csrf.php';
 require_once __DIR__.'/../partials/flash.php';
+// i18n helper (no-op for now in views)
+require_once __DIR__.'/../app/Helpers/I18n.php';
 
 $routes = require __DIR__.'/../config/routes.php';
 require_once __DIR__.'/../app/Helpers/Router.php';

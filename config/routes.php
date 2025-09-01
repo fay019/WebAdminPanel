@@ -4,6 +4,7 @@ return [
     'GET' => [
         '/' => 'DashboardController@index',
         '/dashboard' => 'DashboardController@index',
+        '/lang' => 'I18nController@set',
         // legacy redirects
         '/dashboard.php' => ['redirect' => '/dashboard'],
     ],

@@ -1,4 +1,5 @@
 <?php
+use App\Helpers\Response;
 class Router {
     private array $routes;
     public function __construct(array $routes){ $this->routes = $routes; }
@@ -25,8 +26,41 @@ class Router {
         }
         if (is_string($target)) { $this->invoke($target); return; }
 
+        // If URI exists for other methods -> 405
+        $allowed = [];
+        foreach ($this->routes as $m => $map) {
+            if ($m === 'GET_AJAX') continue;
+            if (!empty($map[$uri])) { $allowed[] = $m; }
+        }
+        if ($allowed) {
+            http_response_code(405);
+            header('Allow: '.implode(', ', array_unique($allowed)));
+            $this->renderError(405);
+            return;
+        }
+
         http_response_code(404);
-        echo file_exists(__DIR__.'/../../../public/404.html') ? file_get_contents(__DIR__.'/../../../public/404.html') : 'Not Found';
+        $this->renderError(404);
+    }
+
+    private function renderError(int $code): void {
+        // Prefer new views if Response exists
+        if (class_exists('App\\Helpers\\Response')) {
+            $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+            $wantsJson = str_contains($accept, 'application/json');
+            if ($wantsJson) {
+                Response::json(['error' => $code, 'message' => ($code===404?'Not Found':'Method Not Allowed')], $code);
+                return;
+            }
+            if ($code === 404 && is_file(__DIR__.'/../Views/errors/404.php')) {
+                // Render MVC 404 page
+                Response::view('errors/404', []);
+                return;
+            }
+        }
+        $fallback = __DIR__.'/../../../public/'.($code===404?'404.html':'50x.html');
+        if (is_readable($fallback)) { readfile($fallback); }
+        else { echo ($code===404?'Not Found':'Method Not Allowed'); }
     }
 
     private function invoke(string $controllerAction): void {

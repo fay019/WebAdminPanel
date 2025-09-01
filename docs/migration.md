@@ -30,6 +30,11 @@ config/routes.php
 - GET /dashboard?ajax=sysinfo → DashboardController@sysinfo (pour la nouvelle URL)
 - POST /dashboard/power → DashboardController@power
 - POST /system_power.php → DashboardController@power (compat avec l’URL historique)
+- GET /lang?set=fr|en → I18nController@set (AJAX simple pour changer la langue via cookie/session)
+
+Le Router renvoie 404/405 explicites:
+- 404: Response::view('errors/404') si possible, sinon public/404.html
+- 405: envoie l’en-tête Allow et une réponse JSON si Accept=application/json
 
 Remarque: les assets restent sous /public/… (inchangés).
 
@@ -64,14 +69,20 @@ Des Middlewares dédiés (app/Middlewares/AuthMiddleware.php, CsrfMiddleware.php
 ## Étapes suivantes
 
 1) Créer Middlewares dédiés (AuthMiddleware, CsrfMiddleware) et les brancher dans public/index.php.  
-2) Extraire SysInfoService et PowerService (app/Services/*) et faire appeler ces services par DashboardController (au lieu d’appels shell directs).  
-3) Migrer `php_manage.php` → SystemController@phpManage + vues. Streaming identique.  
-4) Migrer Sites (list/new/edit/delete) en conservant les mêmes URLs/params pour l’AJAX et les formulaires.  
-5) Migrer Users (list/new/edit) avec validations et notes.  
-6) Introduire Models (User, Site) pour encapsuler l’accès DB.  
-7) Ajouter config/app.php, config/database.php, storage/ (logs, cache).  
+2) Migrer `php_manage.php` → SystemController@phpManage + vues. Streaming identique.  
+3) Migrer Sites (list/new/edit/delete) en conservant les mêmes URLs/params pour l’AJAX et les formulaires.  
+4) Migrer Users (list/new/edit) avec validations et notes.  
+5) Introduire Models (User, Site) pour encapsuler l’accès DB.  
+6) Ajouter config/app.php, config/database.php, storage/ (logs, cache).  
+7) Préparer l’i18n: lang/fr.php, lang/en.php et helper __() (déjà ajoutés, non utilisés par défaut).  
 8) Remplacer progressivement les inclusions legacy par des Helpers/Middlewares/Services sans changer le comportement.  
 9) Une fois chaque page validée, mettre en place les redirections définitives depuis les URLs legacy, puis supprimer les fichiers legacy en fin de migration.
+
+## Conventions contrôleurs
+
+- Nom de fichier: NomController.php (ex: DashboardController.php)
+- Classe: App\\Controllers\\NomController
+- Méthodes d’actions: camelCase (ex: index, sysinfo, power)
 
 ## Git
 
