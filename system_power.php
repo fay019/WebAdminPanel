@@ -28,7 +28,7 @@ csrf_check();
 
 $action = $_POST['action'] ?? '';
 $isAjax = ($_POST['ajax'] ?? '') === '1';
-$back   = $_POST['back'] ?? ($_SERVER['HTTP_REFERER'] ?? '/dashboard.php');
+$back   = $_POST['back'] ?? ($_SERVER['HTTP_REFERER'] ?? '/dashboard');
 
 if (!in_array($action, ['shutdown','reboot'], true)) {
     if ($isAjax) {

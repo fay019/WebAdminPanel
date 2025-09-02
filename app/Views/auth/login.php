@@ -1,6 +1,6 @@
 <?php
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
-require_once __DIR__ . '/../../../partials/flash.php';
+require_once __DIR__ . '/../partials/flash.php';
 require_once __DIR__ . '/../../../lib/csrf.php';
 $csrf = $_SESSION['csrf'] ?? csrf_token();
 $loggedIn = isset($_SESSION['user']);

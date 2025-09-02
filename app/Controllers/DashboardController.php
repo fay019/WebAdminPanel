@@ -28,7 +28,7 @@ class DashboardController {
         $action = $_POST['action'] ?? '';
         $stream = isset($_GET['stream']) ? (string)$_GET['stream'] : (isset($_POST['stream']) ? (string)$_POST['stream'] : '');
         $ajax   = ($_POST['ajax'] ?? '') === '1';
-        $back   = $_POST['back'] ?? ($_SERVER['HTTP_REFERER'] ?? '/dashboard.php');
+        $back   = $_POST['back'] ?? ($_SERVER['HTTP_REFERER'] ?? '/dashboard');
         $svc = new PowerService();
         if ($stream==='1' || $stream==='true') { $svc->execute($action, true); return; }
         $out = $svc->execute($action, false);

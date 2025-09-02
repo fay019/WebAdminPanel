@@ -1,5 +1,5 @@
 <?php /* View copied from legacy dashboard.php body to preserve UI and JS */ ?>
-<script>window.SYSINFO_URL = '/dashboard.php?ajax=sysinfo';</script>
+<script>window.SYSINFO_URL = '/dashboard?ajax=sysinfo';</script>
 
 <div class="card">
     <h2>Dashboard</h2>
@@ -13,8 +13,9 @@
            data-ajax="1"
            data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"
            style="display:inline-block;margin-right:8px">
-            <img src="/public/img/power.svg" alt="Éteindre" title="Éteindre" class="icon-btn" />
+            <img src="/img/power.svg" alt="Éteindre" title="Éteindre" class="icon-btn" />
         </a>
+
 
         <a href="/system_power.php?stream=1"
            class="icon-link"
@@ -23,7 +24,7 @@
            data-ajax="1"
            data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"
            style="display:inline-block">
-            <img src="/public/img/reload.svg" alt="Redémarrer" title="Redémarrer" class="icon-btn" />
+            <img src="/img/reload.svg" alt="Redémarrer" title="Redémarrer" class="icon-btn" />
         </a>
     </div>
 

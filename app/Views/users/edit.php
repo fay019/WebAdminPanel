@@ -34,4 +34,4 @@
     </div>
   </form>
 </div>
-<script src="/public/js/password.js" defer></script>
+<script src="/js/password.js" defer></script>
