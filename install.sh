@@ -50,21 +50,6 @@ prompt() {
   fi
 }
 
-detect_php_version() {
-  local sock
-  sock=$(ls /run/php/php*-fpm.sock 2>/dev/null | head -n1 || true)
-  if [[ -n "$sock" ]]; then
-    echo "$sock" | sed -E 's#^/run/php/php([0-9]+\.[0-9]+)-fpm\.sock$#\1#'
-    return
-  fi
-  for v in 8.3 8.2 8.1; do
-    if dpkg -s "php${v}-fpm" >/dev/null 2>&1; then
-      echo "$v"; return
-    fi
-  done
-  echo ""
-}
-
 ensure_pkg() {
   local pkg="$1"
   if ! dpkg -s "$pkg" >/dev/null 2>&1; then
@@ -104,18 +89,36 @@ if [[ "$PANEL_DIR" != /* ]]; then
 fi
 PANEL_DIR="${PANEL_DIR%/}"
 
-# PHP-FPM
-PHP_VER="${PHP_DEFAULT}"
-if [[ -z "$PHP_VER" ]]; then
-  PHP_VER="$(detect_php_version)"
+# ---------- PHP-FPM : détection + choix utilisateur ----------
+# 1) Construire la liste des versions détectées par les sockets
+available_php=()
+for sock in /run/php/php*-fpm.sock; do
+  [[ -S "$sock" ]] || continue
+  ver="$(echo "$sock" | sed -E 's#.*/php([0-9]+\.[0-9]+)-fpm\.sock#\1#')"
+  available_php+=("$ver")
+done
+# Si rien trouvé, proposer au moins 8.3
+if [[ ${#available_php[@]} -eq 0 ]]; then
+  available_php=("8.3")
 fi
-if [[ -z "$PHP_VER" ]]; then
-  PHP_VER="$(prompt 'Version PHP-FPM à utiliser (ex: 8.3, 8.2)' "8.3")"
+# Par défaut: la plus grande version détectée
+# (tri "naturel" approximatif en bash: on prend la dernière trouvée, généralement la plus récente)
+default_php="${available_php[-1]}"
+
+# 2) Valeur forcée par flag --php, sinon poser la question
+if [[ -n "$PHP_DEFAULT" ]]; then
+  PHP_VER="$PHP_DEFAULT"
+else
+  PHP_VER="$(prompt "Version PHP-FPM à utiliser (disponibles: ${available_php[*]})" "$default_php")"
 fi
+
 PHPFPM_SOCK="/run/php/php${PHP_VER}-fpm.sock"
+# Installer/activer php-fpm choisi si le socket n'existe pas
 if [[ ! -S "$PHPFPM_SOCK" ]]; then
   echo "[php] Socket $PHPFPM_SOCK introuvable — tentative d’installation de php${PHP_VER}-fpm…"
   ensure_pkg "php${PHP_VER}-fpm"
+  ensure_pkg "php${PHP_VER}-sqlite3"
+  ensure_pkg "php${PHP_VER}-cli"
   sudo systemctl enable "php${PHP_VER}-fpm" || true
   sudo systemctl restart "php${PHP_VER}-fpm"
   if [[ ! -S "$PHPFPM_SOCK" ]]; then
