@@ -6,6 +6,9 @@ return [
         '/dashboard' => 'DashboardController@index',
         '/php_manage' => 'SystemController@phpManage',
         '/lang' => 'I18nController@set',
+        // Auth
+        '/login' => 'AuthController@loginForm',
+        '/logout' => 'AuthController@logout', // GET allowed but will still require CSRF
         // Users
         '/users' => 'UsersController@index',
         '/users/new' => 'UsersController@create',
@@ -15,8 +18,13 @@ return [
         '/users_list.php' => ['redirect' => '/users'],
         '/user_new.php' => ['redirect' => '/users/new'],
         '/user_edit.php' => 'UsersController@edit',
+        '/login.php' => ['redirect' => '/login'],
+        '/logout.php' => ['redirect' => '/logout'],
     ],
     'POST' => [
+        // Auth
+        '/login' => 'AuthController@login',
+        '/logout' => 'AuthController@logout',
         '/dashboard/sysinfo' => 'DashboardController@sysinfo', // allow POST too if needed
         '/dashboard/power' => 'DashboardController@power',
         '/php_manage' => 'SystemController@phpManage',
@@ -33,7 +41,7 @@ return [
         '/php_manage.php' => 'SystemController@phpManage',
     ],
     'GET_AJAX' => [
-        // existing AJAX pattern /dashboard.php?ajax=sysinfo must remain
+        // the existing AJAX pattern /dashboard.php?ajax=sysinfo must remain
         '/dashboard.php?ajax=sysinfo' => 'DashboardController@sysinfo',
         '/dashboard?ajax=sysinfo' => 'DashboardController@sysinfo',
     ],
