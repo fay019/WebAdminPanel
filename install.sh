@@ -10,7 +10,7 @@ set -euo pipefail
 # - Déploiement sudoers
 # - Création vhost + test + reload
 # Flags:
-#   --panel-dir=/var/www/adminpanel
+#   --panel-dir=/srv/www/adminpanel
 #   --php=8.3
 #   --vhost-name=awp.local.conf
 #   --server-names="awp.local adminpanel.local"
@@ -18,7 +18,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────
 
 # ========== Defaults ==========
-PANEL_DIR_DEFAULT="/var/www/adminpanel"
+PANEL_DIR_DEFAULT="/srv/www/adminpanel"
 PHP_DEFAULT=""
 VHOST_NAME_DEFAULT="adminpanel.conf"
 SERVER_NAMES_DEFAULT="adminpanel.local"
