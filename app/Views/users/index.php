@@ -1,9 +1,13 @@
-<?php /* Copie fidèle de users_list.php (corps), servie via layout */ ?>
+<?php /* Liste des utilisateurs (MVC) */ ?>
 <div class="card">
   <h2><?php echo function_exists('__') ? __('nav.users') : 'Utilisateurs'; ?></h2>
   <?php show_flash(); ?>
-  <div class="actions">
-    <a class="btn primary" href="/users/new">+ Ajouter un utilisateur</a>
+  <div class="actions" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+    <form method="get" action="/users" style="display:flex;gap:8px;align-items:center">
+      <input type="text" name="q" placeholder="Rechercher..." value="<?= htmlspecialchars($q ?? '') ?>">
+      <button class="btn">Rechercher</button>
+    </form>
+    <a class="btn primary" href="/users/create">+ Ajouter un utilisateur</a>
   </div>
   <div class="table-wrap">
     <table class="tbl tbl--hover tbl--sticky" role="table" data-default-sort="created" data-default-dir="desc">
@@ -22,7 +26,7 @@
         <tr>
           <td class="col-id" data-label="ID"><?= (int)$u['id'] ?></td>
           <td class="col-name" data-label="Nom">
-            <?= htmlspecialchars($u['username']) ?><?= $u['username']===current_user() ? ' <span class="badge">moi</span>' : '' ?>
+            <strong><?= htmlspecialchars($u['username']) ?></strong><?= $u['username']===current_user() ? ' <span class="badge">moi</span>' : '' ?>
             <div class="name-sub">
               <?php if($notes===''): ?>
                 <span class="muted mono">—</span>
@@ -58,4 +62,12 @@
       </tbody>
     </table>
   </div>
+  <?php if (!empty($pagination)): ?>
+    <div class="pagination" style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+      <?php $qparam = ($q??'')!=='' ? '&q='.urlencode($q) : ''; ?>
+      <a class="btn" href="/users?page=<?= (int)($pagination['hasPrev'] ? $pagination['prevPage'] : 1) ?><?= $qparam ?>" aria-disabled="<?= $pagination['hasPrev']? 'false':'true' ?>">&laquo; Précédent</a>
+      <span class="small mono">Page <?= (int)$pagination['page'] ?> / <?= (int)$pagination['lastPage'] ?> — <?= (int)$pagination['total'] ?> utilisateur(s)</span>
+      <a class="btn" href="/users?page=<?= (int)($pagination['hasNext'] ? $pagination['nextPage'] : $pagination['lastPage']) ?><?= $qparam ?>" aria-disabled="<?= $pagination['hasNext']? 'false':'true' ?>">Suivant &raquo;</a>
+    </div>
+  <?php endif; ?>
 </div>

@@ -11,13 +11,15 @@ return [
         '/logout' => 'AuthController@logout', // GET allowed but will still require CSRF
         // Users
         '/users' => 'UsersController@index',
-        '/users/new' => 'UsersController@create',
+        '/users/create' => 'UsersController@create',
+        '/users/{id}' => 'UsersController@show',
         '/users/{id}/edit' => 'UsersController@edit',
         // legacy redirects
         '/dashboard.php' => ['redirect' => '/dashboard'],
         '/users_list.php' => ['redirect' => '/users'],
-        '/user_new.php' => ['redirect' => '/users/new'],
-        '/user_edit.php' => 'UsersController@edit',
+        '/user_new.php' => ['redirect' => '/users/create'],
+        '/user_edit.php' => ['redirect' => '/users'],
+        '/users/new' => ['redirect' => '/users/create'],
         '/login.php' => ['redirect' => '/login'],
         '/logout.php' => ['redirect' => '/logout'],
     ],
@@ -30,7 +32,7 @@ return [
         '/php_manage' => 'SystemController@phpManage',
         // Users
         '/users' => 'UsersController@store',
-        '/users/{id}' => 'UsersController@update',
+        '/users/{id}/update' => 'UsersController@update',
         '/users/{id}/reset-password' => 'UsersController@resetPassword',
         '/users/{id}/delete' => 'UsersController@destroy',
         // dynamic-like posts

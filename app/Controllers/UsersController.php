@@ -9,8 +9,37 @@ class UsersController {
         require_once __DIR__.'/../../lib/db.php';
         require_once __DIR__.'/../../partials/flash.php';
         $this->ensureMigrate();
-        $users = db()->query('SELECT id, username, notes, created_at FROM users ORDER BY username ASC')->fetchAll();
-        Response::view('users/index', compact('users'));
+        // Recherche et pagination
+        $q = trim((string)($_GET['q'] ?? ''));
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = 10;
+        $offset = ($page - 1) * $perPage;
+        $params = [];
+        $where = '';
+        if ($q !== '') { $where = 'WHERE username LIKE :q ESCAPE \'\\\''; $params[':q'] = '%'.str_replace(['%','_'], ['\\%','\\_'], $q).'%'; }
+        $total = (int)db()->prepare("SELECT COUNT(*) FROM users $where")->execute($params) ?: 0;
+        $stmtCnt = db()->prepare("SELECT COUNT(*) FROM users $where");
+        $stmtCnt->execute($params);
+        $total = (int)$stmtCnt->fetchColumn();
+        $sql = "SELECT id, username, notes, created_at FROM users $where ORDER BY username ASC LIMIT :lim OFFSET :off";
+        $stmt = db()->prepare($sql);
+        foreach ($params as $k=>$v) { $stmt->bindValue($k, $v, \PDO::PARAM_STR); }
+        $stmt->bindValue(':lim', $perPage, \PDO::PARAM_INT);
+        $stmt->bindValue(':off', $offset, \PDO::PARAM_INT);
+        $stmt->execute();
+        $users = $stmt->fetchAll();
+        $lastPage = max(1, (int)ceil($total / $perPage));
+        $pagination = [
+            'page' => $page,
+            'perPage' => $perPage,
+            'total' => $total,
+            'lastPage' => $lastPage,
+            'hasPrev' => $page > 1,
+            'hasNext' => $page < $lastPage,
+            'prevPage' => $page > 1 ? $page - 1 : 1,
+            'nextPage' => $page < $lastPage ? $page + 1 : $lastPage,
+        ];
+        Response::view('users/index', compact('users','pagination','q'));
     }
 
     public function create(): void {
@@ -29,12 +58,11 @@ class UsersController {
         $notesRaw = trim((string)($_POST['notes'] ?? ''));
         $notes = $notesRaw === '' ? null : mb_substr($notesRaw, 0, 1000);
         $err=[];
+        if($username==='') $err[]='Nom requis.';
         if(strlen($username)<3) $err[]='Nom trop court (min 3).';
+        if($password==='') $err[]='Mot de passe requis.';
         if($password!==$confirm) $err[]='Confirmation du mot de passe différente.';
         if(strlen($password)<8) $err[]='Mot de passe trop court (min 8).';
-        if(!preg_match('~[A-Z]~',$password)) $err[]='Ajouter une majuscule.';
-        if(!preg_match('~[a-z]~',$password)) $err[]='Ajouter une minuscule.';
-        if(!preg_match('~\\d~',$password)) $err[]='Ajouter un chiffre.';
         $st=db()->prepare('SELECT COUNT(*) FROM users WHERE username=:u COLLATE NOCASE'); $st->execute([':u'=>$username]);
         if($st->fetchColumn()>0) $err[]='Nom déjà pris.';
         if(!$err){
@@ -46,7 +74,7 @@ class UsersController {
             Response::redirect('/users');
         } else {
             flash('err', implode(' ', $err));
-            Response::redirect('/users/new');
+            Response::redirect('/users/create');
         }
     }
 
@@ -71,6 +99,7 @@ class UsersController {
         $notesRaw = trim((string)($_POST['notes'] ?? ''));
         $notes = $notesRaw === '' ? null : mb_substr($notesRaw, 0, 1000);
         $err=[];
+        if($username==='') $err[]='Nom requis.';
         if(strlen($username)<3) $err[]='Nom trop court (min 3).';
         if($username!==$user['username']){
             $chk=db()->prepare('SELECT COUNT(*) FROM users WHERE username=:u COLLATE NOCASE AND id<>:id'); $chk->execute([':u'=>$username, ':id'=>$id]);
@@ -86,6 +115,17 @@ class UsersController {
         } else { flash('err', implode(' ', $err)); Response::redirect('/users/'.$id.'/edit'); }
     }
 
+    public function show(): void {
+        require_once __DIR__.'/../../lib/db.php';
+        $this->ensureMigrate();
+        $id = (int)($_GET['id'] ?? 0);
+        $st = db()->prepare('SELECT id, username, notes, created_at FROM users WHERE id=:id');
+        $st->execute([':id'=>$id]);
+        $user = $st->fetch();
+        if(!$user){ http_response_code(404); echo 'Utilisateur introuvable'; return; }
+        Response::view('users/show', compact('user'));
+    }
+
     public function resetPassword(): void {
         require_once __DIR__.'/../../lib/db.php';
         require_once __DIR__.'/../../partials/flash.php';
@@ -97,9 +137,6 @@ class UsersController {
         $err=[];
         if($p1!==$p2) $err[]='Confirmation différente.';
         if(strlen($p1)<8) $err[]='Mot de passe trop court (min 8).';
-        if(!preg_match('~[A-Z]~',$p1)) $err[]='Ajouter une majuscule.';
-        if(!preg_match('~[a-z]~',$p1)) $err[]='Ajouter une minuscule.';
-        if(!preg_match('~\\d~',$p1)) $err[]='Ajouter un chiffre.';
         if(!$err){
             db()->prepare('UPDATE users SET password_hash=:h WHERE id=:id')->execute([':h'=>password_hash($p1,PASSWORD_BCRYPT), ':id'=>$id]);
             require_once __DIR__.'/../../lib/auth.php';

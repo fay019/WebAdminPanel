@@ -1,10 +1,9 @@
-<?php /* Copie fidèle de user_edit.php (corps), servie via layout */ ?>
+<?php /* Edition utilisateur (MVC) */ ?>
 <div class="card">
   <h2>Éditer l’utilisateur</h2>
   <?php show_flash(); ?>
-  <form method="post" style="margin-bottom:20px" action="/users/<?= (int)$user['id'] ?>">
+  <form method="post" style="margin-bottom:20px" action="/users/<?= (int)$user['id'] ?>/update">
     <?= csrf_input() ?>
-    <input type="hidden" name="action" value="save_profile">
     <label>Nom d’utilisateur</label>
     <input name="username" required minlength="3" value="<?= htmlspecialchars($_POST['username'] ?? $user['username']) ?>">
     <label>Notes (optionnel)</label>
