@@ -2,15 +2,16 @@
 namespace App\Helpers;
 class Response {
     public static function view(string $view, array $data = []): void {
-        extract($data, EXTR_SKIP);
+        // Expose provided data to the view scope
+        if (!empty($data)) { extract($data, EXTR_SKIP); }
         $base = __DIR__.'/../Views/';
         $viewFile = $base . $view . '.php';
         $layout = $base . 'layouts/layout.php';
         if (!file_exists($viewFile)) { http_response_code(500); echo 'View not found'; return; }
-        // Simple layout include contract: $__view_file
-        $__view_file = $viewFile;
+        // Ensure the layout can locate the resolved view file
+        $GLOBALS['__view_file'] = $viewFile;
         if (file_exists($layout)) { include $layout; }
-        else { include $__view_file; }
+        else { include $GLOBALS['__view_file']; }
     }
     public static function json($payload, int $status=200): void {
         http_response_code($status); header('Content-Type: application/json; charset=utf-8');
