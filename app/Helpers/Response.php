@@ -8,10 +8,12 @@ class Response {
         $viewFile = $base . $view . '.php';
         $layout = $base . 'layouts/layout.php';
         if (!file_exists($viewFile)) { http_response_code(500); echo 'View not found'; return; }
-        // Ensure the layout can locate the resolved view file
-        $GLOBALS['__view_file'] = $viewFile;
+        // Make the resolved view file available to the layout include scope
+        $__view_file = $viewFile;
+        // Also set a global for any partials that might rely on it
+        $GLOBALS['__view_file'] = $__view_file;
         if (file_exists($layout)) { include $layout; }
-        else { include $GLOBALS['__view_file']; }
+        else { include $__view_file; }
     }
     public static function json($payload, int $status=200): void {
         http_response_code($status); header('Content-Type: application/json; charset=utf-8');
