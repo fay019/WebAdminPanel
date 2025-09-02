@@ -1,18 +1,18 @@
 <?php
 namespace App\Helpers;
-class Response {
+final class Response {
     public static function view(string $view, array $data = []): void {
         // Expose provided data to the view scope
         if (!empty($data)) { extract($data, EXTR_SKIP); }
-        $base = __DIR__.'/../Views/';
-        $viewFile = $base . $view . '.php';
-        $layout = $base . 'layouts/layout.php';
-        if (!file_exists($viewFile)) { http_response_code(500); echo 'View not found'; return; }
-        // Make the resolved view file available to the layout include scope
-        $__view_file = $viewFile;
+        $base = realpath(__DIR__ . '/../Views');
+        if ($base === false) { http_response_code(500); echo 'Views base path not found'; return; }
+        $relative = str_replace(['.', '\\'], ['/', '/'], $view) . '.php';
+        $__view_file = $base . DIRECTORY_SEPARATOR . $relative;
+        if (!is_file($__view_file)) { http_response_code(500); echo 'Vue introuvable: ' . htmlspecialchars($__view_file, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); return; }
+        $layout = $base . '/layouts/layout.php';
         // Also set a global for any partials that might rely on it
         $GLOBALS['__view_file'] = $__view_file;
-        if (file_exists($layout)) { include $layout; }
+        if (is_file($layout)) { include $layout; }
         else { include $__view_file; }
     }
     public static function json($payload, int $status=200): void {

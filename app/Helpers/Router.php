@@ -6,6 +6,8 @@ class Router {
 
     public function dispatch(): void {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        $isHead = false;
+        if ($method === 'HEAD') { $isHead = true; $method = 'GET'; }
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         $query = $_SERVER['QUERY_STRING'] ?? '';
 
