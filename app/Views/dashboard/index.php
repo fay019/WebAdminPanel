@@ -1,5 +1,5 @@
 <?php /* View copied from legacy dashboard.php body to preserve UI and JS */ ?>
-<script>window.SYSINFO_URL = '/dashboard?ajax=sysinfo';</script>
+<script>window.SYSINFO_URL = '/api/sysinfo';</script>
 
 <div class="card">
     <h2>Dashboard</h2>

@@ -3,6 +3,7 @@ namespace App\Controllers;
 use App\Helpers\Response;
 use App\Services\SysInfoService;
 use App\Services\PowerService;
+use App\Services\SystemInfoService;
 
 class DashboardController {
     public function index(): void {
@@ -16,7 +17,17 @@ class DashboardController {
         Response::view('dashboard/index', compact('sitesCount','sysinfo','php_fpm_compact'));
     }
 
+    // New normalized JSON endpoint (cached)
+    public function api(): void {
+        header('Content-Type: application/json; charset=UTF-8');
+        $svc = new SystemInfoService(4);
+        $data = $svc->get();
+        echo json_encode($data, JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
     public function sysinfo(): void {
+        // Legacy: keep streaming the existing bin/sysinfo.sh output
         header('Content-Type: application/json; charset=utf-8');
         $sysSvc = new SysInfoService();
         $sysSvc->streamRaw();

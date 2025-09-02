@@ -329,8 +329,13 @@
     }
 
     function pickLoad(d) {
-        // Accepte: cpu_load | load | cpu.load_pct | cpuLoad
-        return d?.cpu_load ?? d?.load ?? d?.cpu?.load_pct ?? d?.cpuLoad ?? 'n/a';
+        // Accepte: cpu_load | load | cpu.load_pct | cpuLoad | loadavg.1m
+        if (d?.cpu_load != null) return d.cpu_load;
+        if (d?.load != null) return d.load;
+        if (d?.cpu?.load_pct != null) return d.cpu.load_pct;
+        if (d?.cpuLoad != null) return d.cpuLoad;
+        if (d?.loadavg && (d.loadavg['1m'] != null)) return d.loadavg['1m'];
+        return 'n/a';
     }
 
     function pickRam(d) {

@@ -14,6 +14,10 @@ return [
         '/users/create' => 'UsersController@create',
         '/users/{id}' => 'UsersController@show',
         '/users/{id}/edit' => 'UsersController@edit',
+        // API sysinfo
+        '/api/sysinfo' => 'DashboardController@api',
+        // Legacy alias for compatibility
+        '/ajax/sysinfo' => 'DashboardController@api',
         // legacy redirects
         '/dashboard.php' => ['redirect' => '/dashboard'],
         '/users_list.php' => ['redirect' => '/users'],
