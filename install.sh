@@ -3,28 +3,24 @@ set -euo pipefail
 
 # ─────────────────────────────────────────────────────────────
 # Mini Web Panel — install.sh (interactif & idempotent)
-# - Choix dossier d'install (PANEL_DIR)
-# - Choix PHP-FPM (auto / 8.3 / 8.2)
-# - Choix nom de vhost Nginx (avec vérif d'existence)
-# - DB SQLite & droits
-# - Déploiement sudoers
-# - Création vhost + test + reload
 # Flags:
-#   --panel-dir=/srv/www/adminpanel
+#   --panel-dir=/srv/www/webadminpanel-v2
 #   --php=8.3
-#   --vhost-name=awp.local.conf
-#   --server-names="awp.local adminpanel.local"
-#   --force (écrase vhost existant)
+#   --vhost-name=beta.awp.local.conf
+#   --server-names="beta.awp.local"
+#   --force                 # écrase vhost existant
+#   --non-interactive       # utilise defaults/flags sans prompts
 # ─────────────────────────────────────────────────────────────
 
 # ========== Defaults ==========
-PANEL_DIR_DEFAULT="/srv/www/adminpanel"
+PANEL_DIR_DEFAULT="$(pwd)"
 PHP_DEFAULT=""
 VHOST_NAME_DEFAULT="adminpanel.conf"
 SERVER_NAMES_DEFAULT="adminpanel.local"
 FORCE_OVERWRITE=0
+NON_INTERACTIVE=0
 
-# ========== Parse flags simple ==========
+# ========== Parse flags ==========
 for arg in "$@"; do
   case "$arg" in
     --panel-dir=*) PANEL_DIR_DEFAULT="${arg#*=}";;
@@ -32,14 +28,18 @@ for arg in "$@"; do
     --vhost-name=*) VHOST_NAME_DEFAULT="${arg#*=}";;
     --server-names=*) SERVER_NAMES_DEFAULT="${arg#*=}";;
     --force)       FORCE_OVERWRITE=1;;
+    --non-interactive) NON_INTERACTIVE=1;;
     *) echo "Unknown arg: $arg"; exit 1;;
   esac
 done
 
 # ========== Helpers ==========
 prompt() {
-  # $1=question, $2=default
   local q="$1"; local def="${2-}"
+  if [[ "$NON_INTERACTIVE" -eq 1 ]]; then
+    echo "${def}"
+    return
+  fi
   local ans
   if [[ -n "${def}" ]]; then
     read -r -p "$q [$def]: " ans || true
@@ -51,16 +51,14 @@ prompt() {
 }
 
 detect_php_version() {
-  # Try to detect from /run/php sockets
   local sock
   sock=$(ls /run/php/php*-fpm.sock 2>/dev/null | head -n1 || true)
   if [[ -n "$sock" ]]; then
     echo "$sock" | sed -E 's#^/run/php/php([0-9]+\.[0-9]+)-fpm\.sock$#\1#'
     return
   fi
-  # Fallback: check installed versions
   for v in 8.3 8.2 8.1; do
-    if command -v "php$v" >/dev/null 2>&1 || dpkg -l "php$v-fpm" >/dev/null 2>&1; then
+    if dpkg -s "php${v}-fpm" >/dev/null 2>&1; then
       echo "$v"; return
     fi
   done
@@ -76,21 +74,37 @@ ensure_pkg() {
   fi
 }
 
-mk_owned() {
-  local path="$1"
-  sudo mkdir -p "$path"
-  sudo chown -R www-data:www-data "$path"
+APP_USER="${SUDO_USER:-$USER}"
+umask 002  # le groupe (www-data) a l'écriture par défaut
+
+mk_dir() { sudo mkdir -p "$1"; }
+
+chown_code_tree() {
+  # Code: owner=user, group=www-data (Nginx lit)
+  sudo chown -R "$APP_USER":www-data "$PANEL_DIR"
+  sudo find "$PANEL_DIR" -type d -exec chmod 775 {} \;
+  sudo find "$PANEL_DIR" -type f -exec chmod 664 {} \; 2>/dev/null || true
 }
 
-# ========== Interactive inputs ==========
+chown_runtime_dirs() {
+  # Runtime (data/logs): écriture www-data
+  sudo chown -R www-data:www-data "$DATA_DIR" "$LOGS_DIR"
+  sudo chmod -R 775 "$DATA_DIR" "$LOGS_DIR"
+}
+
+# ========== UI ==========
 echo "────────────────────────────────────────────────────────"
 echo " Mini Web Panel — Installation"
 echo "────────────────────────────────────────────────────────"
 
-PANEL_DIR="${PANEL_DIR_DEFAULT}"
-PANEL_DIR="$(prompt 'Chemin d’installation (PANEL_DIR)' "$PANEL_DIR")"
-PANEL_DIR="${PANEL_DIR%/}" # trim trailing slash
+# PANEL_DIR (default = dossier courant), normaliser en absolu
+PANEL_DIR="$(prompt 'Chemin d’installation (PANEL_DIR)' "$PANEL_DIR_DEFAULT")"
+if [[ "$PANEL_DIR" != /* ]]; then
+  PANEL_DIR="$(pwd)/$PANEL_DIR"
+fi
+PANEL_DIR="${PANEL_DIR%/}"
 
+# PHP-FPM
 PHP_VER="${PHP_DEFAULT}"
 if [[ -z "$PHP_VER" ]]; then
   PHP_VER="$(detect_php_version)"
@@ -99,11 +113,9 @@ if [[ -z "$PHP_VER" ]]; then
   PHP_VER="$(prompt 'Version PHP-FPM à utiliser (ex: 8.3, 8.2)' "8.3")"
 fi
 PHPFPM_SOCK="/run/php/php${PHP_VER}-fpm.sock"
-
 if [[ ! -S "$PHPFPM_SOCK" ]]; then
-  echo "[php] Socket $PHPFPM_SOCK introuvable — j’installe php${PHP_VER}-fpm si besoin…"
+  echo "[php] Socket $PHPFPM_SOCK introuvable — tentative d’installation de php${PHP_VER}-fpm…"
   ensure_pkg "php${PHP_VER}-fpm"
-  # (re)lance fpm
   sudo systemctl enable "php${PHP_VER}-fpm" || true
   sudo systemctl restart "php${PHP_VER}-fpm"
   if [[ ! -S "$PHPFPM_SOCK" ]]; then
@@ -111,15 +123,17 @@ if [[ ! -S "$PHPFPM_SOCK" ]]; then
   fi
 fi
 
-VHOST_NAME="${VHOST_NAME_DEFAULT}"
-VHOST_NAME="$(prompt 'Nom du fichier Nginx (sites-available) ' "$VHOST_NAME")"
-# sécurité: suffixe .conf si absent
-if [[ "$VHOST_NAME" != *.conf ]]; then
-  VHOST_NAME="${VHOST_NAME}.conf"
+# VHOST defaults plus malins pour v2
+guess_vhost="$VHOST_NAME_DEFAULT"
+guess_server="$SERVER_NAMES_DEFAULT"
+if [[ "$(basename "$PANEL_DIR")" =~ v2 ]]; then
+  guess_vhost="beta.awp.local.conf"
+  guess_server="beta.awp.local"
 fi
 
-SERVER_NAMES="${SERVER_NAMES_DEFAULT}"
-SERVER_NAMES="$(prompt 'server_name (séparés par espace)' "$SERVER_NAMES")"
+VHOST_NAME="$(prompt 'Nom du fichier Nginx (sites-available)' "$guess_vhost")"
+[[ "$VHOST_NAME" == *.conf ]] || VHOST_NAME="${VHOST_NAME}.conf"
+SERVER_NAMES="$(prompt 'server_name (séparés par espace)' "$guess_server")"
 
 # ========== Layout ==========
 DATA_DIR="$PANEL_DIR/data"
@@ -131,12 +145,12 @@ NGINX_ENAB="/etc/nginx/sites-enabled"
 VHOST_PATH="$NGINX_AVAIL/$VHOST_NAME"
 
 echo "[1/7] Dossiers & droits"
-mk_owned "$PANEL_DIR/public"
-mk_owned "$PANEL_DIR/bin"
-mk_owned "$DATA_DIR"
-mk_owned "$LOGS_DIR"
-sudo chmod 770 "$DATA_DIR" || true
-sudo chmod 750 "$LOGS_DIR" || true
+mk_dir "$PANEL_DIR/public"
+mk_dir "$PANEL_DIR/bin"
+mk_dir "$DATA_DIR"
+mk_dir "$LOGS_DIR"
+chown_code_tree
+chown_runtime_dirs
 
 echo "[2/7] Extensions & CLI PHP/SQLite"
 ensure_pkg sqlite3
@@ -156,14 +170,58 @@ if [[ -d "$ASSETS_SRC_DIR" ]]; then
   fi
 fi
 
-echo "[4/7] DB SQLite"
+echo "[4/7] DB SQLite (création + init admin)"
 if [[ ! -f "$DB_FILE" ]]; then
   sudo touch "$DB_FILE"
   sudo chown www-data:www-data "$DB_FILE"
   sudo chmod 664 "$DB_FILE"
-  echo "  - DB créée: $DB_FILE"
+  # init schéma + admin par défaut (admin/admin) si table vide
+  DB_PATH="$DB_FILE" /usr/bin/php <<'PHP'
+<?php
+$path = getenv('DB_PATH');
+if (!$path) { fwrite(STDERR, "No DB_PATH\n"); exit(1); }
+$pdo = new PDO('sqlite:'.$path, null, null, [
+  PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+  PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
+$pdo->exec("CREATE TABLE IF NOT EXISTS users(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL
+)");
+$pdo->exec("CREATE TABLE IF NOT EXISTS sites(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE NOT NULL,
+  server_names TEXT NOT NULL,
+  root TEXT NOT NULL,
+  php_version TEXT NOT NULL,
+  client_max_body_size INTEGER NOT NULL DEFAULT 20,
+  with_logs INTEGER NOT NULL DEFAULT 1,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)");
+$pdo->exec("CREATE TABLE IF NOT EXISTS audit(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  action TEXT NOT NULL,
+  payload TEXT,
+  created_at TEXT NOT NULL
+)");
+$exists = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+if ($exists === 0) {
+  $hash = password_hash('admin', PASSWORD_BCRYPT);
+  $st = $pdo->prepare("INSERT INTO users(username,password_hash,created_at) VALUES(:u,:p,:c)");
+  $st->execute([':u'=>'admin', ':p'=>$hash, ':c'=>date('c')]);
+  echo "Admin créé: admin/admin\n";
+} else {
+  echo "Admin déjà présent (aucune modif)\n";
+}
+PHP
+  echo "  - DB créée et initialisée: $DB_FILE"
 else
-  echo "  - DB déjà présente (skip): $DB_FILE"
+  echo "  - DB déjà présente (skip init): $DB_FILE"
 fi
 
 echo "[5/7] Sudoers"
@@ -172,12 +230,13 @@ if [[ ! -f "$SUDOERS_FILE" ]]; then
   echo "www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx, /usr/sbin/nginx -t, $PANEL_DIR/bin/*" | sudo tee "$SUDOERS_FILE" >/dev/null
   sudo chmod 440 "$SUDOERS_FILE"
   echo "  - sudoers créé"
+  sudo visudo -c >/dev/null && echo "  - sudoers validé" || echo "  - WARNING: sudoers invalide"
 else
   echo "  - sudoers déjà présent (skip)"
 fi
 
 echo "[6/7] Vhost Nginx"
-# Protection: ne pas écraser un vhost existant sans --force
+# Protection overwrite
 if [[ -f "$VHOST_PATH" && "$FORCE_OVERWRITE" -ne 1 ]]; then
   echo "ATTENTION: $VHOST_PATH existe déjà."
   read -r -p "  Voulez-vous l’écraser ? [y/N]: " yn
@@ -190,11 +249,14 @@ if [[ -f "$VHOST_PATH" && "$FORCE_OVERWRITE" -ne 1 ]]; then
 fi
 
 if [[ ! -f "$VHOST_PATH" || "$FORCE_OVERWRITE" -eq 1 ]]; then
-  # Détermine si public/ existe
-  ROOT_DIR="$PANEL_DIR"
-  if [[ -d "$PANEL_DIR/public" ]]; then
-    ROOT_DIR="$PANEL_DIR/public"
+  # Backup si existait
+  if [[ -f "$VHOST_PATH" ]]; then
+    sudo cp -a "$VHOST_PATH" "${VHOST_PATH}.bak.$(date +%F-%H%M%S)"
+    echo "  - Backup vhost: ${VHOST_PATH}.bak.*"
   fi
+  # root = .../public s’il existe
+  ROOT_DIR="$PANEL_DIR"
+  [[ -d "$PANEL_DIR/public" ]] && ROOT_DIR="$PANEL_DIR/public"
 
   sudo tee "$VHOST_PATH" >/dev/null <<EOF
 server {
@@ -221,7 +283,7 @@ EOF
   echo "  - Vhost écrit: $VHOST_PATH"
 fi
 
-# Symlink dans sites-enabled
+# Activer
 if [[ ! -L "$NGINX_ENAB/$VHOST_NAME" ]]; then
   sudo ln -s "$VHOST_PATH" "$NGINX_ENAB/$VHOST_NAME"
   echo "  - Activé: $NGINX_ENAB/$VHOST_NAME"
@@ -238,3 +300,4 @@ echo "   • PANEL_DIR    : $PANEL_DIR"
 echo "   • PHP-FPM      : $PHP_VER  (sock: $PHPFPM_SOCK)"
 echo "   • VHOST        : $VHOST_PATH"
 echo "   • server_name  : $SERVER_NAMES"
+echo "   • DB           : $DB_FILE"
