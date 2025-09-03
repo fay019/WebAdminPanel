@@ -18,6 +18,7 @@ return [
         '/api/sysinfo' => 'DashboardController@api',
         // API energy
         '/energy/status' => 'EnergyController@status',
+        '/api/energy/status' => 'EnergyController@status',
         // Legacy alias for compatibility
         '/ajax/sysinfo' => 'DashboardController@api',
         // legacy redirects
@@ -45,6 +46,9 @@ return [
         '/energy/toggle/hdmi' => 'EnergyController@toggleHdmi',
         '/energy/toggle/wifi' => 'EnergyController@toggleWifi',
         '/energy/toggle/bt'   => 'EnergyController@toggleBt',
+        '/api/energy/toggle/hdmi' => 'EnergyController@toggleHdmi',
+        '/api/energy/toggle/wifi' => 'EnergyController@toggleWifi',
+        '/api/energy/toggle/bt'   => 'EnergyController@toggleBt',
         // dynamic-like posts
         '/user_edit.php' => 'UsersController@legacyPost',
         '/users_list.php' => 'UsersController@destroy',

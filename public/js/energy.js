@@ -1,10 +1,10 @@
 // public/js/energy.js
 (() => {
     const EP = {
-        status: '/energy/status',
-        hdmi:   '/energy/toggle/hdmi',
-        wifi:   '/energy/toggle/wifi',
-        bt:     '/energy/toggle/bt',
+        status: '/api/energy/status',
+        hdmi:   '/api/energy/toggle/hdmi',
+        wifi:   '/api/energy/toggle/wifi',
+        bt:     '/api/energy/toggle/bt',
     };
 
     const $ = (sel) => document.querySelector(sel);
@@ -14,11 +14,7 @@
     const $bt     = $('#ps-bt');
     const csrf    = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
 
-    const setBtn = (el, on) => {
-        if (!el) return;
-        el.setAttribute('aria-pressed', on ? 'true' : 'false');
-        el.dataset.on = on ? '1' : '0';
-    };
+    const setBtn = (el, on) => { if (!el) return; el.setAttribute('aria-pressed', on?'true':'false'); el.dataset.on = on?'1':'0'; };
 
     const render = (j) => {
         const hdmiTxt = j.hdmi === 1 ? 'on' : (j.hdmi === 0 ? 'off' : 'unsupported');
@@ -28,48 +24,20 @@
         setBtn($bt,   j.bluetooth === 'on');
     };
 
-    const fetchJSON = async (url, opts={}) => {
-        const r = await fetch(url, opts);
-        return r.json();
-    };
+    const fetchJSON = async (url, opts={}) => { const r = await fetch(url, opts); return r.json(); };
 
-    const getStatus = () =>
-        fetchJSON(EP.status).then(render).catch(() => {
-            if ($status) $status.textContent = 'Statut indisponible';
-        });
+    const getStatus = () => fetchJSON(EP.status).then(render).catch(() => { if ($status) $status.textContent='Statut indisponible'; });
 
     const postValue = (url, value) => {
         const body = new URLSearchParams({_token: csrf, value});
-        return fetchJSON(url, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'},
-            body
-        }).then(render);
+        return fetchJSON(url, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'}, body }).then(render);
     };
 
-    const withBusy = (el, fn) => async () => {
-        if (!el) return;
-        el.setAttribute('aria-busy', 'true');
-        try { await fn(); } finally { el.removeAttribute('aria-busy'); }
-    };
+    const withBusy = (el, fn) => async () => { if (!el) return; el.setAttribute('aria-busy','true'); try { await fn(); } finally { el.removeAttribute('aria-busy'); } };
 
-    if ($hdmi) $hdmi.addEventListener('click', withBusy($hdmi, () => {
-        const next = $hdmi.dataset.on === '1' ? '0' : '1';
-        return postValue(EP.hdmi, next);
-    }));
+    if ($hdmi) $hdmi.addEventListener('click', withBusy($hdmi, () => postValue(EP.hdmi, $hdmi.dataset.on==='1'?'0':'1')));
+    if ($wifi) $wifi.addEventListener('click', withBusy($wifi, () => postValue(EP.wifi, $wifi.dataset.on==='1'?'off':'on')));
+    if ($bt)   $bt  .addEventListener('click', withBusy($bt,   () => postValue(EP.bt,   $bt.dataset.on  ==='1'?'off':'on')));
 
-    if ($wifi) $wifi.addEventListener('click', withBusy($wifi, () => {
-        const next = $wifi.dataset.on === '1' ? 'off' : 'on';
-        return postValue(EP.wifi, next);
-    }));
-
-    if ($bt) $bt.addEventListener('click', withBusy($bt, () => {
-        const next = $bt.dataset.on === '1' ? 'off' : 'on';
-        return postValue(EP.bt, next);
-    }));
-
-    document.addEventListener('DOMContentLoaded', () => {
-        getStatus();
-        setInterval(getStatus, 10000);
-    });
+    document.addEventListener('DOMContentLoaded', () => { getStatus(); setInterval(getStatus, 10000); });
 })();
