@@ -155,6 +155,14 @@ mk_dir "$LOGS_DIR"
 chown_code_tree
 chown_runtime_dirs
 
+echo "[1b/7] Marquer bin/*.sh comme exécutables (si présents)"
+if compgen -G "$PANEL_DIR/bin/*.sh" >/dev/null 2>&1; then
+  sudo chmod +x "$PANEL_DIR/bin/"*.sh
+  echo "  - bin/*.sh -> +x"
+else
+  echo "  - Aucun script dans $PANEL_DIR/bin pour l’instant (skip)"
+fi
+
 echo "[2/7] Extensions & CLI PHP/SQLite"
 ensure_pkg sqlite3
 ensure_pkg "php${PHP_VER}-sqlite3"
@@ -171,6 +179,15 @@ if [[ -d "$ASSETS_SRC_DIR" ]]; then
     sudo cp -n "$ASSETS_SRC_DIR/js/app.js" "$PANEL_DIR/public/js/app.js" || true
     echo "  - JS ok"
   fi
+fi
+
+echo "[3b/7] Dépendances Power Saver (rfkill + vcgencmd si Raspberry Pi)"
+if command -v apt-get >/dev/null 2>&1; then
+  sudo apt-get update -y >/dev/null 2>&1 || true
+  # rfkill pour Wi-Fi/BT ; libraspberrypi-bin pour vcgencmd (HDMI)
+  sudo apt-get install -y rfkill libraspberrypi-bin >/dev/null 2>&1 || true
+else
+  echo "  - apt-get indisponible (skip deps Power Saver)"
 fi
 
 echo "[4/7] DB SQLite (création + init admin)"
