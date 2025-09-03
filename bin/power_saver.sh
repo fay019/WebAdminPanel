@@ -24,22 +24,27 @@ die() { echo "ERR: $*" >&2; exit 1; }
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 hdmi_status() {
-  if ! have_cmd vcgencmd; then echo -n "null"; return; fi
-  local v
-  # Essai sans index
-  v="$(vcgencmd display_power 2>/dev/null | awk -F= '/display_power/ {print $2}')" || true
-  # Si vide, tenter display 0 puis 1
-  if [[ -z "$v" ]]; then
-    v="$(vcgencmd display_power 2>/dev/null 0 | awk -F= '/display_power/ {print $2}')" || true
+  # KMS/DRM (Pi 5) : on lit le statut de connexion (pas l'alimentation)
+  local p
+  for p in /sys/class/drm/*HDMI-A-*/status; do
+    [[ -f "$p" ]] || continue
+    local s
+    s="$(cat "$p" 2>/dev/null || true)"
+    case "$s" in
+      connected)   echo -n "1"; return ;;
+      disconnected) echo -n "0"; return ;;
+    esac
+  done
+  # Si pas de DRM, tenter encore vcgencmd (anciens modèles)
+  if command -v vcgencmd >/dev/null 2>&1; then
+    local v
+    v="$(vcgencmd display_power 2>/dev/null | awk -F= '/display_power/ {print $2}')" || true
+    case "$v" in
+      1) echo -n "1"; return ;;
+      0) echo -n "0"; return ;;
+    esac
   fi
-  if [[ -z "$v" ]]; then
-    v="$(vcgencmd display_power 2>/dev/null 1 | awk -F= '/display_power/ {print $2}')" || true
-  fi
-  case "$v" in
-    1) echo -n "1" ;;
-    0) echo -n "0" ;;
-    *) echo -n "null" ;;
-  esac
+  echo -n "null"
 }
 
 wifi_status() {
@@ -71,28 +76,59 @@ case "$cmd" in
     emit_status_json
     ;;
 
-    hdmi)
-      [[ -n "$arg" ]] || { emit_status_json; exit 0; }
-      [[ "$arg" == "0" || "$arg" == "1" ]] || { emit_status_json; exit 0; }
+      hdmi)
+        [[ -n "$arg" ]] || { emit_status_json; exit 0; }
+        [[ "$arg" == "0" || "$arg" == "1" ]] || { emit_status_json; exit 0; }
 
-      # Si vcgencmd absent -> on renvoie juste l'état (hdmi=null)
-      if ! have_cmd vcgencmd; then
-        emit_status_json
-        exit 0
-      fi
+        # Priorité: Wayland (wlr-randr)
+        if command -v wlr-randr >/dev/null 2>&1; then
+          # Choix d'une sortie HDMI-A-* connectée
+          out="$(wlr-randr | awk '/connected/ && $1 ~ /HDMI-A-/ {print $1; exit}')" || out=""
+          if [[ -n "$out" ]]; then
+            if [[ "$arg" == "1" ]]; then
+              wlr-randr --output "$out" --on >/dev/null 2>&1 || true
+            else
+              wlr-randr --output "$out" --off >/dev/null 2>&1 || true
+            fi
+            emit_status_json; exit 0
+          fi
+        fi
 
-      # 1er essai : syntaxe classique
-      if ! vcgencmd display_power "$arg" >/dev/null 2>&1; then
-        # Pi 4/5/KMS : certaines stacks exigent un index d'écran (0 ou 1)
-        vcgencmd display_power "$arg" 0 >/dev/null 2>&1 \
+        # X11 (xrandr) si DISPLAY présent
+        if command -v xrandr >/dev/null 2>&1 && [[ -n "${DISPLAY:-}" ]]; then
+          out="$(xrandr --query | awk '/ connected / && $1 ~ /HDMI-/ {print $1; exit}')" || out=""
+          if [[ -n "$out" ]]; then
+            if [[ "$arg" == "1" ]]; then
+              xrandr --output "$out" --auto >/dev/null 2>&1 || true
+            else
+              xrandr --output "$out" --off  >/dev/null 2>&1 || true
+            fi
+            emit_status_json; exit 0
+          fi
+        fi
+
+        # Console seule : fallback blank/unblank (économie légère)
+        if [[ -w /sys/class/graphics/fbcon/blank ]]; then
+          if [[ "$arg" == "1" ]]; then
+            echo 0 > /sys/class/graphics/fbcon/blank || true
+          else
+            echo 1 > /sys/class/graphics/fbcon/blank || true
+          fi
+          emit_status_json; exit 0
+        fi
+
+        # Ancien firmware (non Pi5) : tentative vcgencmd (ne plante jamais)
+        if command -v vcgencmd >/dev/null 2>&1; then
+          vcgencmd display_power "$arg"      >/dev/null 2>&1 \
+          || vcgencmd display_power "$arg" 0 >/dev/null 2>&1 \
           || vcgencmd display_power "$arg" 1 >/dev/null 2>&1 \
           || true
-        # Quoi qu'il arrive on ne "die" pas : on renverra l'état courant
-      fi
+          emit_status_json; exit 0
+        fi
 
-      # Toujours renvoyer un JSON d'état (même si l'action a été ignorée)
-      emit_status_json
-      ;;
+        # Si aucune méthode applicable → renvoyer état sans erreur
+        emit_status_json
+        ;;
 
   wifi)
     [[ -n "$arg" ]] || die "missing arg (on|off)"
