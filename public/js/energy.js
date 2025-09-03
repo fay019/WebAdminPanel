@@ -69,9 +69,18 @@
     };
 
     if ($hdmi) $hdmi.addEventListener('click', withBusy($hdmi, () => {
-        const next = $hdmi.dataset.on === '1' ? '0' : '1';
-        return postValue(EP.hdmi, next);
+        const next   = $hdmi.dataset.on === '1' ? '0' : '1';
+        const output = (document.querySelector('#ps-output')?.value || $hdmi.dataset.output || '').trim();
+        const body   = new URLSearchParams({_token: CSRF, value: next});
+        if (output) body.append('output', output);
+        return fetchJSON('/api/energy/toggle/hdmi', {
+            method: 'POST',
+            headers: {'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest','X-CSRF-Token': CSRF},
+            credentials: 'same-origin',
+            body
+        }).then(render);
     }));
+
 
     if ($wifi) $wifi.addEventListener('click', withBusy($wifi, () => {
         const next = $wifi.dataset.on === '1' ? 'off' : 'on';

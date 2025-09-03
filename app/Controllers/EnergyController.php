@@ -16,11 +16,28 @@ final class EnergyController
             : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
     }
 
+    // app/Controllers/EnergyController.php (méthode toggleHdmi)
     public function toggleHdmi(): void
     {
-        $value = (($_POST['value'] ?? '') === '1') ? '1' : '0';
-        $this->execAndReturn('hdmi', $value);
+        $value  = (($_POST['value'] ?? '') === '1') ? '1' : '0';
+        $output = trim($_POST['output'] ?? ''); // <— optionnel
+        header('Content-Type: application/json; charset=utf-8');
+
+        $cmd = sprintf(
+            'sudo -n %s/bin/power_saver.sh %s %s %s 2>&1',
+            $this->panelDir,
+            'hdmi',
+            escapeshellarg($value),
+            $output !== '' ? escapeshellarg($output) : ''
+        );
+        $out = trim(shell_exec($cmd) ?? '');
+        if ($this->looksJson($out)) { echo $out; return; }
+
+        // fallback status
+        $status = trim(shell_exec(sprintf('sudo -n %s/bin/power_saver.sh status 2>&1', $this->panelDir)) ?? '');
+        echo $this->looksJson($status) ? $status : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
     }
+
 
     public function toggleWifi(): void
     {

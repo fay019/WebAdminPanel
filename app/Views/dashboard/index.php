@@ -33,18 +33,49 @@
     <div class="card ps-card" id="energy-card">
         <div class="card-header"><strong>Économie d’énergie</strong></div>
         <div class="card-body">
-            <div id="ps-status">Chargement…</div>
+            <div id="ps-status" class="small">Chargement…</div>
+
+            <!-- Sélecteur sortie HDMI -->
+            <div class="form-row" style="margin:10px 0">
+                <label for="ps-output" class="small">Sortie HDMI à contrôler :</label>
+                <select id="ps-output">
+                    <option value="">Tous les HDMI connectés</option>
+                    <option value="HDMI-A-1">HDMI-A-1</option>
+                    <option value="HDMI-A-2">HDMI-A-2</option>
+                </select>
+            </div>
+
             <div class="ps-row">
                 <button type="button" id="ps-hdmi" aria-pressed="false" title="HDMI">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h18v10H3zM8 19h8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M3 5h18v10H3zM8 19h8"
+                              stroke="currentColor"
+                              stroke-width="1.6"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"/>
+                    </svg>
                     <span>HDMI</span>
                 </button>
+
                 <button type="button" id="ps-wifi" aria-pressed="false" title="Wi-Fi">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9a12 12 0 0 1 16 0M7 12a8 8 0 0 1 10 0M10 15a4 4 0 0 1 4 0M12 19h.01" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M4 9a12 12 0 0 1 16 0M7 12a8 8 0 0 1 10 0M10 15a4 4 0 0 1 4 0M12 19h.01"
+                              stroke="currentColor"
+                              stroke-width="1.6"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"/>
+                    </svg>
                     <span>Wi-Fi</span>
                 </button>
+
                 <button type="button" id="ps-bt" aria-pressed="false" title="Bluetooth">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v18l6-6-6-6 6-6-6 6-6-6m6 6-6 6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M12 3v18l6-6-6-6 6-6-6 6-6-6m6 6-6 6"
+                              stroke="currentColor"
+                              stroke-width="1.6"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"/>
+                    </svg>
                     <span>BT</span>
                 </button>
             </div>

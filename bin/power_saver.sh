@@ -75,92 +75,62 @@ case "$cmd" in
   status|"")
     emit_status_json
     ;;
-
           hdmi)
-            # usage: power_saver.sh hdmi 0|1 [OUTPUT_NAME]
-            act="${arg:-}"; out_req="${3:-}"
-            [[ "$act" == "0" || "$act" == "1" ]] || { emit_status_json; exit 0; }
+              # Usage: power_saver.sh hdmi 0|1 [OUTPUT_NAME]
+              act="${arg:-}"; out_req="${3:-}"
+              [[ "$act" == "0" || "$act" == "1" ]] || { emit_status_json; exit 0; }
 
-            # --- détecter session graphique et user seat0 ---
-            get_gui_env() {
-              local sid user type uid rt disp xauth wld
-              sid="$(loginctl list-sessions --no-legend 2>/dev/null | awk '$3=="seat0"{print $1; exit}')" || true
-              [[ -n "$sid" ]] || { echo ""; return; }
-              user="$(loginctl show-session "$sid" -p Name --value 2>/dev/null)" || true
-              type="$(loginctl show-session "$sid" -p Type --value 2>/dev/null)" || true
-              [[ -n "$user" ]] || { echo ""; return; }
-              uid="$(id -u "$user" 2>/dev/null)"
-              rt="/run/user/$uid"
-              if [[ "$type" == "x11" ]]; then
-                disp=":0"; xauth="/home/$user/.Xauthority"
-                echo "$user x11 $disp $rt $xauth"
+              # Trouver une session Wayland active (seat0)
+              get_wayland_env() {
+                while read -r sid _; do
+                  user="$(loginctl show-session "$sid" -p Name  --value 2>/dev/null)"  || true
+                  type="$(loginctl show-session "$sid" -p Type  --value 2>/dev/null)"  || true
+                  state="$(loginctl show-session "$sid" -p State --value 2>/dev/null)" || true
+                  [[ "$type" == "wayland" && "$state" == "active" ]] || continue
+                  uid="$(id -u "$user" 2>/dev/null)" || continue
+                  rt="/run/user/$uid"
+                  wld="$(ls "$rt"/wayland-* 2>/dev/null | head -n1 | xargs -n1 basename)"
+                  [[ -n "$wld" ]] || continue
+                  echo "$user $rt $wld"
+                  return
+                done < <(loginctl list-sessions --no-legend 2>/dev/null)
+                echo ""
+              }
+
+              read -r GUI_USER GUI_RT GUI_WLD <<<"$(get_wayland_env || true)"
+              if [[ -z "$GUI_USER" || -z "$GUI_RT" || -z "$GUI_WLD" ]]; then
+                emit_status_json; exit 0
+              fi
+
+              # Vérifier wlr-randr
+              if ! command -v wlr-randr >/dev/null 2>&1; then
+                emit_status_json; exit 0
+              fi
+
+              # Si pas de sortie précisée → prendre toutes les HDMI connectées
+              outputs=()
+              if [[ -n "$out_req" ]]; then
+                outputs+=("$out_req")
               else
-                # Wayland
-                wld="$(ls "$rt"/wayland-* 2>/dev/null | head -n1 | xargs -n1 basename)"
-                [[ -n "$wld" ]] || wld="wayland-0"
-                echo "$user wayland $wld $rt -"
+                while IFS= read -r o; do outputs+=("$o"); done < <(
+                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                    wlr-randr | awk '/ connected/ && $1 ~ /HDMI-A-/ {print $1}'
+                )
               fi
-            }
 
-            read -r GUI_USER GUI_TYPE GUI_DISP GUI_RT GUI_XAUTH <<<"$(get_gui_env || true)"
-
-            # --- Wayland: wlr-randr ---
-            if [[ "$GUI_TYPE" == "wayland" ]] && command -v wlr-randr >/dev/null 2>&1; then
-              # choisir une sortie si non fournie
-              if [[ -z "$out_req" ]]; then
-                out_req="$(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_DISP" \
-                          wlr-randr | awk '/ connected / && $1 ~ /HDMI-A-/ {print $1; exit}')" || true
-              fi
-              if [[ -n "$out_req" ]]; then
+              # Appliquer ON/OFF
+              for o in "${outputs[@]}"; do
                 if [[ "$act" == "1" ]]; then
-                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_DISP" \
-                    wlr-randr --output "$out_req" --on >/dev/null 2>&1 || true
+                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                    wlr-randr --output "$o" --on  >/dev/null 2>&1 || true
                 else
-                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_DISP" \
-                    wlr-randr --output "$out_req" --off >/dev/null 2>&1 || true
+                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                    wlr-randr --output "$o" --off >/dev/null 2>&1 || true
                 fi
-                emit_status_json; exit 0
-              fi
-            fi
+              done
 
-            # --- X11: xrandr ---
-            if command -v xrandr >/dev/null 2>&1 && [[ "$GUI_TYPE" == "x11" ]]; then
-              [[ -n "$GUI_DISP" ]] || GUI_DISP=":0"
-              [[ -n "$GUI_XAUTH" ]] || GUI_XAUTH="/home/${GUI_USER}/.Xauthority"
-              # choisir une sortie si non fournie
-              if [[ -z "$out_req" ]]; then
-                out_req="$(sudo -u "$GUI_USER" env DISPLAY="$GUI_DISP" XAUTHORITY="$GUI_XAUTH" \
-                         xrandr --query | awk '/ connected / && $1 ~ /HDMI-/ {print $1; exit}')" || true
-              fi
-              if [[ -n "$out_req" ]]; then
-                if [[ "$act" == "1" ]]; then
-                  sudo -u "$GUI_USER" env DISPLAY="$GUI_DISP" XAUTHORITY="$GUI_XAUTH" \
-                    xrandr --output "$out_req" --auto >/dev/null 2>&1 || true
-                else
-                  sudo -u "$GUI_USER" env DISPLAY="$GUI_DISP" XAUTHORITY="$GUI_XAUTH" \
-                    xrandr --output "$out_req" --off  >/dev/null 2>&1 || true
-                fi
-                emit_status_json; exit 0
-              fi
-            fi
-
-            # --- console: framebuffer blank/unblank (fallback léger) ---
-            if [[ -w /sys/class/graphics/fbcon/blank ]]; then
-              [[ "$act" == "1" ]] && echo 0 > /sys/class/graphics/fbcon/blank || echo 1 > /sys/class/graphics/fbcon/blank || true
-              emit_status_json; exit 0
-            fi
-
-            # --- ancien firmware: vcgencmd (ne plante jamais) ---
-            if command -v vcgencmd >/dev/null 2>&1; then
-              vcgencmd display_power "$act"      >/dev/null 2>&1 \
-              || vcgencmd display_power "$act" 0 >/dev/null 2>&1 \
-              || vcgencmd display_power "$act" 1 >/dev/null 2>&1 \
-              || true
-              emit_status_json; exit 0
-            fi
-
-            emit_status_json
-            ;;
+              emit_status_json
+              ;;
 
   wifi)
     [[ -n "$arg" ]] || die "missing arg (on|off)"
