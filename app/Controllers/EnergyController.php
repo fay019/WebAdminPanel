@@ -9,9 +9,11 @@ final class EnergyController
     public function status(): void
     {
         header('Content-Type: application/json; charset=utf-8');
-        $cmd = sprintf('sudo %s/bin/power_saver.sh status 2>&1', $this->panelDir);
+        $cmd = sprintf('sudo -n %s/bin/power_saver.sh status 2>&1', $this->panelDir);
         $out = trim(shell_exec($cmd) ?? '');
-        echo $out !== '' ? $out : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
+        echo $this->looksJson($out)
+            ? $out
+            : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
     }
 
     public function toggleHdmi(): void
@@ -35,13 +37,34 @@ final class EnergyController
     private function execAndReturn(string $target, string $value): void
     {
         header('Content-Type: application/json; charset=utf-8');
+
         $cmd = sprintf(
-            'sudo %s/bin/power_saver.sh %s %s 2>&1',
+            'sudo -n %s/bin/power_saver.sh %s %s 2>&1',
             $this->panelDir,
             escapeshellarg($target),
             escapeshellarg($value)
         );
         $out = trim(shell_exec($cmd) ?? '');
-        echo $out !== '' ? $out : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
+
+        if ($this->looksJson($out)) {
+            echo $out;
+            return;
+        }
+
+        // Fallback: on renvoie l’état courant pour ne jamais casser le front
+        $statusCmd = sprintf('sudo -n %s/bin/power_saver.sh status 2>&1', $this->panelDir);
+        $statusOut = trim(shell_exec($statusCmd) ?? '');
+        echo $this->looksJson($statusOut)
+            ? $statusOut
+            : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
+    }
+
+    private function looksJson(string $s): bool
+    {
+        if ($s === '') return false;
+        $s = ltrim($s);
+        if ($s[0] !== '{' && $s[0] !== '[') return false;
+        json_decode($s);
+        return (json_last_error() === JSON_ERROR_NONE);
     }
 }

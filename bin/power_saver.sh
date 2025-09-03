@@ -25,9 +25,16 @@ have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 hdmi_status() {
   if ! have_cmd vcgencmd; then echo -n "null"; return; fi
-  # display_power=1|0
   local v
+  # Essai sans index
   v="$(vcgencmd display_power 2>/dev/null | awk -F= '/display_power/ {print $2}')" || true
+  # Si vide, tenter display 0 puis 1
+  if [[ -z "$v" ]]; then
+    v="$(vcgencmd display_power 2>/dev/null 0 | awk -F= '/display_power/ {print $2}')" || true
+  fi
+  if [[ -z "$v" ]]; then
+    v="$(vcgencmd display_power 2>/dev/null 1 | awk -F= '/display_power/ {print $2}')" || true
+  fi
   case "$v" in
     1) echo -n "1" ;;
     0) echo -n "0" ;;
@@ -64,14 +71,28 @@ case "$cmd" in
     emit_status_json
     ;;
 
-  hdmi)
-    [[ -n "$arg" ]] || die "missing arg (0|1)"
-    [[ "$arg" == "0" || "$arg" == "1" ]] || die "invalid arg '$arg' (use 0|1)"
-    have_cmd vcgencmd || die "vcgencmd not found (firmware Raspberry Pi requis)"
-    # Appliquer puis retourner l'état
-    vcgencmd display_power "$arg" >/dev/null 2>&1 || die "vcgencmd failed"
-    emit_status_json
-    ;;
+    hdmi)
+      [[ -n "$arg" ]] || { emit_status_json; exit 0; }
+      [[ "$arg" == "0" || "$arg" == "1" ]] || { emit_status_json; exit 0; }
+
+      # Si vcgencmd absent -> on renvoie juste l'état (hdmi=null)
+      if ! have_cmd vcgencmd; then
+        emit_status_json
+        exit 0
+      fi
+
+      # 1er essai : syntaxe classique
+      if ! vcgencmd display_power "$arg" >/dev/null 2>&1; then
+        # Pi 4/5/KMS : certaines stacks exigent un index d'écran (0 ou 1)
+        vcgencmd display_power "$arg" 0 >/dev/null 2>&1 \
+          || vcgencmd display_power "$arg" 1 >/dev/null 2>&1 \
+          || true
+        # Quoi qu'il arrive on ne "die" pas : on renverra l'état courant
+      fi
+
+      # Toujours renvoyer un JSON d'état (même si l'action a été ignorée)
+      emit_status_json
+      ;;
 
   wifi)
     [[ -n "$arg" ]] || die "missing arg (on|off)"
