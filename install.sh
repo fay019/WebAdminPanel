@@ -29,7 +29,7 @@ ASSET_CSS_SRC="$SCRIPT_DIR/public/css/style.css"
 ASSET_JS_SRC="$SCRIPT_DIR/public/js/app.js"
 OVERWRITE_ASSETS="${OVERWRITE_ASSETS:-0}"  # 1 pour forcer la copie, 0 sinon
 
-echo "[1/6] Dossiers & droits"
+echo "[1/7] Dossiers & droits"
 mkdir -p "$DATA_DIR" "$LOGS_DIR" "$PANEL_DIR/public" "$PANEL_DIR/bin"
 chown -R www-data:www-data "$DATA_DIR" "$LOGS_DIR"
 chmod 770 "$DATA_DIR" || true
@@ -57,13 +57,13 @@ if [ -f "$ASSET_JS_SRC" ]; then
   fi
 fi
 
-echo "[2/6] Scripts bin exécutable"
+echo "[2/7] Scripts bin exécutable"
 if compgen -G "$PANEL_DIR/bin/*.sh" > /dev/null; then
   chmod +x "$PANEL_DIR/bin/"*.sh || true
   chown -R www-data:www-data "$PANEL_DIR/bin" || true
 fi
 
-echo "[3/6] Extensions PHP (pdo_sqlite, sqlite3)"
+echo "[3/7] Extensions PHP (pdo_sqlite, sqlite3)"
 if ! php -m | grep -qi pdo_sqlite; then
   echo "⚠️  pdo_sqlite manquant. Sur Debian: sudo apt install php${DEFAULT_PHP}-sqlite3 && sudo systemctl restart php${DEFAULT_PHP}-fpm"
 fi
@@ -71,7 +71,16 @@ if ! php -m | grep -qi '^sqlite3$'; then
   echo "⚠️  sqlite3 manquant. Sur Debian: sudo apt install php${DEFAULT_PHP}-sqlite3 && sudo systemctl restart php${DEFAULT_PHP}-fpm"
 fi
 
-echo "[4/6] Init DB + admin"
+echo "[4/7] Dépendances Power Saver (rfkill + vcgencmd si Raspberry Pi)"
+if command -v apt-get >/dev/null 2>&1; then
+  # Tente l’install silencieuse (idempotent). Sur Pi, vcgencmd vient de libraspberrypi-bin.
+  sudo apt-get update -y >/dev/null 2>&1 || true
+  sudo apt-get install -y rfkill libraspberrypi-bin >/dev/null 2>&1 || true
+else
+  echo "apt-get non disponible (skip deps Power Saver)"
+fi
+
+echo "[5/7] Init DB + admin"
 if [ ! -f "$DB_FILE" ]; then
   /usr/bin/php <<'PHP'
 <?php
@@ -125,7 +134,7 @@ fi
 chown -R www-data:www-data "$DATA_DIR"
 chown -R www-data:www-data "$PANEL_DIR/public" || true
 
-echo "[5/6] Sudoers (whitelist commandes/scripts)"
+echo "[6/7] Sudoers (whitelist commandes/scripts)"
 sudo tee "$SUDOERS_FILE" >/dev/null <<'SUDO'
 www-data ALL=(root) NOPASSWD: /usr/sbin/nginx -t, /bin/systemctl reload nginx, \
 /var/www/adminpanel/bin/site_add.sh, /var/www/adminpanel/bin/site_edit.sh, \
@@ -139,7 +148,7 @@ sudo chown root:root "$SUDOERS_FILE"
 sudo chmod 440 "$SUDOERS_FILE"
 sudo visudo -c >/dev/null && echo "Sudoers OK"
 
-echo "[6/6] Vhost adminpanel + reload nginx"
+echo "[7/7] Vhost adminpanel + reload nginx"
 if [ ! -S "$PHPFPM_SOCK" ]; then
   echo "⚠️  Socket PHP-FPM $PHPFPM_SOCK introuvable. Adapte la version PHP-FPM dans le vhost si besoin."
 fi
