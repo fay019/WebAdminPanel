@@ -16,6 +16,8 @@ return [
         '/users/{id}/edit' => 'UsersController@edit',
         // API sysinfo
         '/api/sysinfo' => 'DashboardController@api',
+        // API energy
+        '/energy/status' => 'EnergyController@status',
         // Legacy alias for compatibility
         '/ajax/sysinfo' => 'DashboardController@api',
         // legacy redirects
@@ -39,6 +41,10 @@ return [
         '/users/{id}/update' => 'UsersController@update',
         '/users/{id}/reset-password' => 'UsersController@resetPassword',
         '/users/{id}/delete' => 'UsersController@destroy',
+        // Energy toggles
+        '/energy/toggle/hdmi' => 'EnergyController@toggleHdmi',
+        '/energy/toggle/wifi' => 'EnergyController@toggleWifi',
+        '/energy/toggle/bt'   => 'EnergyController@toggleBt',
         // dynamic-like posts
         '/user_edit.php' => 'UsersController@legacyPost',
         '/users_list.php' => 'UsersController@destroy',
