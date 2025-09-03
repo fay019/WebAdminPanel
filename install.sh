@@ -179,6 +179,10 @@ if [[ -d "$ASSETS_SRC_DIR" ]]; then
     sudo cp -n "$ASSETS_SRC_DIR/js/app.js" "$PANEL_DIR/public/js/app.js" || true
     echo "  - JS ok"
   fi
+  if [[ -f "$ASSETS_SRC_DIR/js/energy.js" ]]; then
+    sudo cp -n "$ASSETS_SRC_DIR/js/energy.js" "$PANEL_DIR/public/js/energy.js" || true
+    echo "  - JS energy ok"
+  fi
 fi
 
 echo "[3b/7] Dépendances Power Saver (rfkill + vcgencmd si Raspberry Pi)"
@@ -246,11 +250,26 @@ fi
 
 echo "[5/7] Sudoers"
 SUDOERS_FILE="/etc/sudoers.d/adminpanel"
-if [[ ! -f "$SUDOERS_FILE" ]]; then
-  echo "www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx, /usr/sbin/nginx -t, $PANEL_DIR/bin/*" | sudo tee "$SUDOERS_FILE" >/dev/null
+
+# Résoudre en chemin absolu sans symlink pour éviter les mismatchs
+PANEL_DIR_ABS="$(python3 - <<'PY'
+import os,sys; p=os.environ.get("PANEL_DIR",""); print(os.path.realpath(p))
+PY
+)"
+[[ -n "$PANEL_DIR_ABS" ]] || PANEL_DIR_ABS="$PANEL_DIR"
+
+# Règle unique: www-data peut lancer TOUS les scripts de $PANEL_DIR/bin/ sans mot de passe
+SUDO_LINE="www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx, /usr/sbin/nginx -t, ${PANEL_DIR_ABS}/bin/*"
+
+# (Ré)écriture idempotente
+if [[ ! -f "$SUDOERS_FILE" ]] || ! grep -Fq "$PANEL_DIR_ABS/bin/*" "$SUDOERS_FILE"; then
+  echo "$SUDO_LINE" | sudo tee "$SUDOERS_FILE" >/dev/null
   sudo chmod 440 "$SUDOERS_FILE"
-  echo "  - sudoers créé"
-  sudo visudo -c >/dev/null && echo "  - sudoers validé" || echo "  - WARNING: sudoers invalide"
+  if sudo visudo -c >/dev/null 2>&1; then
+    echo "  - sudoers créé/actualisé (OK)"
+  else
+    echo "  - WARNING: sudoers invalide"; exit 1
+  fi
 else
   echo "  - sudoers déjà présent (skip)"
 fi
