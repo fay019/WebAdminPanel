@@ -14,25 +14,27 @@ final class EnergyController
         echo $out !== '' ? $out : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
     }
 
-    public function update(): void
+    public function toggleHdmi(): void
     {
-        $target = $_POST['target'] ?? '';
-        $value  = $_POST['value'] ?? '';
+        $value = (($_POST['value'] ?? '') === '1') ? '1' : '0';
+        $this->execAndReturn('hdmi', $value);
+    }
 
-        if ($target === 'bt') $target = 'bluetooth';
+    public function toggleWifi(): void
+    {
+        $value = (($_POST['value'] ?? '') === 'on') ? 'on' : 'off';
+        $this->execAndReturn('wifi', $value);
+    }
 
-        $ok = match ($target) {
-            'wifi', 'bluetooth' => in_array($value, ['on','off'], true),
-            'hdmi'              => in_array($value, ['0','1'], true),
-            default             => false,
-        };
+    public function toggleBt(): void
+    {
+        $value = (($_POST['value'] ?? '') === 'on') ? 'on' : 'off';
+        $this->execAndReturn('bluetooth', $value);
+    }
 
-        if (!$ok) {
-            http_response_code(400);
-            echo json_encode(['error' => 'bad_params']);
-            return;
-        }
-
+    private function execAndReturn(string $target, string $value): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
         $cmd = sprintf(
             'sudo %s/bin/power_saver.sh %s %s 2>&1',
             $this->panelDir,
@@ -40,8 +42,6 @@ final class EnergyController
             escapeshellarg($value)
         );
         $out = trim(shell_exec($cmd) ?? '');
-
-        header('Content-Type: application/json; charset=utf-8');
         echo $out !== '' ? $out : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
     }
 }

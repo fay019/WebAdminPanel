@@ -1,5 +1,7 @@
 <?php /* View copied from legacy dashboard.php body to preserve UI and JS */ ?>
 <script>window.SYSINFO_URL = '/api/sysinfo';</script>
+<?php $csrf = htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>
+<meta name="csrf-token" content="<?= $csrf ?>">
 
 <div class="card">
     <h2>Dashboard</h2>
@@ -169,3 +171,4 @@
         </div>
     </div>
 </div>
+<script src="/js/energy.js" defer></script>

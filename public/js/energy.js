@@ -16,15 +16,13 @@
 
     const setBtn = (el, on) => {
         if (!el) return;
-        el.classList.toggle('is-on',  on);
-        el.classList.toggle('is-off', !on);
         el.setAttribute('aria-pressed', on ? 'true' : 'false');
         el.dataset.on = on ? '1' : '0';
     };
 
     const render = (j) => {
         const hdmiTxt = j.hdmi === 1 ? 'on' : (j.hdmi === 0 ? 'off' : 'unsupported');
-        $status.textContent = `HDMI: ${hdmiTxt} · Wi-Fi: ${j.wifi} · Bluetooth: ${j.bluetooth}`;
+        if ($status) $status.textContent = `HDMI: ${hdmiTxt} · Wi-Fi: ${j.wifi} · Bluetooth: ${j.bluetooth}`;
         setBtn($hdmi, j.hdmi === 1);
         setBtn($wifi, j.wifi === 'on');
         setBtn($bt,   j.bluetooth === 'on');
@@ -35,9 +33,10 @@
         return r.json();
     };
 
-    const getStatus = () => fetchJSON(EP.status).then(render).catch(() => {
-        $status.textContent = 'Statut indisponible';
-    });
+    const getStatus = () =>
+        fetchJSON(EP.status).then(render).catch(() => {
+            if ($status) $status.textContent = 'Statut indisponible';
+        });
 
     const postValue = (url, value) => {
         const body = new URLSearchParams({_token: csrf, value});
@@ -69,7 +68,6 @@
         return postValue(EP.bt, next);
     }));
 
-    // Init + refresh périodique
     document.addEventListener('DOMContentLoaded', () => {
         getStatus();
         setInterval(getStatus, 10000);
