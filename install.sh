@@ -187,6 +187,10 @@ if [[ -d "$ASSETS_SRC_DIR" ]]; then
     sudo cp -n "$ASSETS_SRC_DIR/js/energy.js" "$PANEL_DIR/public/js/energy.js" || true
     echo "  - JS energy ok"
   fi
+  if [[ -f "$ASSETS_SRC_DIR/js/php_manage.js" ]]; then
+    sudo cp -n "$ASSETS_SRC_DIR/js/php_manage.js" "$PANEL_DIR/public/js/php_manage.js" || true
+    echo "  - JS php_manage ok"
+  fi
 fi
 
 echo "[3b/7] Dépendances Power Saver (rfkill + vcgencmd si Raspberry Pi)"

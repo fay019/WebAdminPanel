@@ -77,21 +77,37 @@ Fichiers:
 - Endpoint AJAX: GET /lang?set=fr|en → I18nController@set, renvoie {ok:true, locale:"fr"}. Pas de rechargement nécessaire.
 - Utilisation: laisser les textes en dur pour l’instant; on peut tester __() sur 2–3 libellés.
 
-## Migration php_manage (Étape en cours)
+## Migration PhpManage (nouveau module MVC)
 
-- Contrôleur: App/Controllers/SystemController.php → phpManage() gère GET (affichage) et POST (actions install/remove/restart).
-- Service: App/Services/PhpManageService.php encapsule bin/php_manage.sh (deploy/local), modes list/install/remove/restart et streaming text/plain.
-- Vue: app/Views/system/php_manage.php reprend le HTML/ids/classes legacy, overlay "busy", attributs data-confirm intacts.
-- Routage: GET /php_manage → SystemController@phpManage; POST /php_manage → SystemController@phpManage; Compat legacy: POST /php_manage.php mappé vers la même action.
-- Sécurité: CsrfMiddleware s’applique sur POST (400 si token invalide). Streaming conserve Content-Type: text/plain.
+- Contrôleur: App/Controllers/PhpManageController.php
+  - index(): liste les versions via service et rend la vue views/php_manage/index.php
+  - runAction(): POST non-stream; exécute la commande en synchrone, flash + redirect vers /php/manage
+  - streamAction(): POST stream; renvoie text/plain et stream le log jusqu’à la fin
+  - legacyPost(): route POST /php_manage.php; si ajax=1 ou stream=1 ⇒ streamAction(), sinon ⇒ runAction()
+- Service: App/Services/PhpManageService.php
+  - resolveBinary(): résout le chemin du script (/var/www/adminpanel/bin/php_manage.sh ou ./bin/php_manage.sh)
+  - listVersions(): exécute sudo -n <bin> list --json et retourne le tableau décodé
+  - buildCommand(action, ver): construit la commande sudo -n <bin> action ver (échappement)
+  - runSync(cmd): exécute la commande (stderr→stdout) et renvoie la sortie brute
+  - streamCommand(cmd): lance proc_open non bloquant et stream stdout/err, keep-alive "." toutes ~2s; fin: "-- Fin (code X) --" + [OK]/[ERREUR]
+  - Compat: méthodes listJson()/execute() existent encore et déléguent aux nouvelles
+- Vue: app/Views/php_manage/index.php copie la structure/IDs/classes du legacy (table classes, badges, overlay #busyOverlay/#busyTitle/#busyHint/#busyLog/#busyClose). Inclut partials/header/footer via layout et charge /js/php_manage.js.
+- Client JS: public/js/php_manage.js gère les actions avec data-stream="1" en overlay (fetch + ReadableStream) et garde ajax=1.
+- Routage (config/routes.php):
+  - GET  /php/manage → PhpManageController@index
+  - POST /php/manage/action → PhpManageController@runAction
+  - POST /php/manage/stream → PhpManageController@streamAction
+  - Compat legacy: GET /php_manage.php → 302 /php/manage ; POST /php_manage.php → PhpManageController@legacyPost
+- Sécurité: AuthMiddleware protège les routes; CsrfMiddleware s’applique aux POST; stream renvoie text/plain, pas de HTML.
 
 ### Tests manuels
-- GET /php_manage → affichage OK, aucun changement visuel.
-- Installer 8.0 via formulaire (stream ?stream=1 + ajax=1) → flux text/plain, overlay se met à jour, fin OK/ERR, fermeture → refresh manuel de la page pour liste à jour.
-- Remove/Restart (POST non-stream) → flash + redirect /php_manage, messages identiques au legacy.
-- POST sans CSRF → 400.
-- Compat: POST /php_manage.php fonctionne.
-- Dashboard inchangé.
+- GET /php/manage → affichage OK, mêmes hooks/markup.
+- Installer 8.0 (stream) → overlay live log, fin [OK]/[ERREUR], bouton Fermer activé.
+- Installer 8.0 (non-stream) → flash + redirect /php/manage, sortie sanitizée.
+- Remove/Restart en modes stream et non-stream → OK.
+- Compat legacy: GET /php_manage.php → 302 /php/manage ; POST /php_manage.php route selon ajax/stream.
+- CSRF: POST sans token → 400.
+- Fonctionne avec le binaire en /var/www/adminpanel/bin ou ./bin.
 
 ## Migration Users (Étape en cours)
 

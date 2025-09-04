@@ -1,9 +1,7 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/lib/auth.php';
-require_login();
-require_once __DIR__ . '/lib/csrf.php';
-require_once __DIR__ . '/partials/flash.php';
+// Temporary legacy shim: redirect to new MVC route
+header('Location: /php/manage', true, 302);
+exit;
 
 if (!function_exists('run')) {
     function run(string $cmd): string

@@ -32,7 +32,7 @@ require_once __DIR__ . '/../../../lib/csrf.php';
         <nav id="mainNav" class="nav">
             <?php if (is_logged_in()): ?>
                 <a href="/dashboard" title="Dashboard" aria-label="Dashboard"><img src="/img/menu/dashboard.svg" class="nav-icon" alt="" role="presentation"></a>
-                <a href="/php_manage.php" title="Système" aria-label="Système"><img src="/img/menu/systemes.svg" class="nav-icon" alt="" role="presentation"></a>
+                <a href="/php/manage" title="Système" aria-label="Système"><img src="/img/menu/systemes.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/sites_list.php" title="Sites" aria-label="Sites"><img src="/img/menu/sites.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/users" title="Utilisateurs" aria-label="Utilisateurs"><img src="/img/menu/users.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/account.php" title="Compte" aria-label="Compte"><img src="/img/menu/account.svg" class="nav-icon" alt="" role="presentation"></a>

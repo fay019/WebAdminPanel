@@ -4,7 +4,10 @@ return [
     'GET' => [
         '/' => 'DashboardController@index',
         '/dashboard' => 'DashboardController@index',
-        '/php_manage' => 'SystemController@phpManage',
+        // New PhpManage routes
+        '/php/manage' => 'PhpManageController@index',
+        // Legacy compat redirect
+        '/php_manage.php' => ['redirect' => '/php/manage'],
         '/lang' => 'I18nController@set',
         // Auth
         '/login' => 'AuthController@loginForm',
@@ -36,7 +39,11 @@ return [
         '/logout' => 'AuthController@logout',
         '/dashboard/sysinfo' => 'DashboardController@sysinfo', // allow POST too if needed
         '/dashboard/power' => 'DashboardController@power',
-        '/php_manage' => 'SystemController@phpManage',
+        // New PhpManage routes
+        '/php/manage/action' => 'PhpManageController@runAction',
+        '/php/manage/stream' => 'PhpManageController@streamAction',
+        // Legacy compat POST dispatcher
+        '/php_manage.php' => 'PhpManageController@legacyPost',
         // Users
         '/users' => 'UsersController@store',
         '/users/{id}/update' => 'UsersController@update',
@@ -54,7 +61,6 @@ return [
         '/users_list.php' => 'UsersController@destroy',
         // legacy endpoint
         '/system_power.php' => 'DashboardController@power',
-        '/php_manage.php' => 'SystemController@phpManage',
     ],
     'GET_AJAX' => [
         // the existing AJAX pattern /dashboard.php?ajax=sysinfo must remain
