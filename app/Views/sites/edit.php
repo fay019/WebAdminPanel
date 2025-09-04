@@ -53,6 +53,12 @@
   </form>
   <form method="post" action="/sites/<?= (int)$site['id'] ?>/delete" style="display:inline">
     <?= csrf_input() ?>
+    <input type="hidden" name="delete_root" value="0">
     <button class="btn danger" data-confirm="Supprimer ce site (garder fichiers) ?">Supprimer</button>
+  </form>
+  <form method="post" action="/sites/<?= (int)$site['id'] ?>/delete" style="display:inline">
+    <?= csrf_input() ?>
+    <input type="hidden" name="delete_root" value="1">
+    <button class="btn danger" data-confirm="Supprimer ce site ET son dossier ? Cette action est définitive.">Supprimer + dossier</button>
   </form>
 </div>
