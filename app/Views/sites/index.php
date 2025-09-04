@@ -47,3 +47,39 @@
     </table>
   </div>
 </div>
+
+<?php if (!empty($orphans)): ?>
+  <div class="card">
+    <h3>🧹 Dossiers orphelins</h3>
+    <div class="table-responsive">
+      <table class="tbl tbl--hover tbl--sticky" role="table" data-default-sort="name" data-default-dir="asc">
+        <thead>
+          <tr>
+            <th class="col-name is-sortable" data-sort-key="name" scope="col">Nom</th>
+            <th class="col-wide" scope="col">Chemin</th>
+            <th class="col-actions" scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+        <?php foreach (($orphans ?? []) as $o): ?>
+          <tr>
+            <td class="col-name" data-label="Nom"><span class="text-ellipsis" title="<?= htmlspecialchars($o['name']) ?>"><?= htmlspecialchars($o['name']) ?></span></td>
+            <td class="col-wide" data-label="Chemin">
+              <span class="text-ellipsis small" title="<?= htmlspecialchars($o['path']) ?>"><?= htmlspecialchars($o['path']) ?></span>
+            </td>
+            <td class="col-actions" data-label="Action">
+              <form method="post" action="/orphan/delete" class="action-form">
+                <?= csrf_input() ?>
+                <input type="hidden" name="dir" value="<?= htmlspecialchars($o['path']) ?>">
+                <input type="hidden" name="back" value="/sites">
+                <button class="btn danger" data-confirm="Supprimer définitivement le dossier « <?= htmlspecialchars($o['name']) ?> » ?">Supprimer le dossier</button>
+              </form>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <div class="small">⚠️ Supprime uniquement le répertoire. Pas d’entrée DB ni de conf Nginx.</div>
+  </div>
+<?php endif; ?>

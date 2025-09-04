@@ -13,8 +13,21 @@ final class SitesController
     {
         require_once __DIR__.'/../../partials/flash.php';
         $sites = $this->svc->list();
-        // For orphans section, reuse legacy later; keep minimal list now
-        Response::view('sites/index', compact('sites'));
+        // Compute orphan directories like legacy sites_list.php
+        require_once __DIR__ . '/../../lib/db.php';
+        $rows = db()->query('SELECT root FROM sites')->fetchAll(\PDO::FETCH_COLUMN);
+        $rootsInDb = array_map(fn($r) => rtrim((string)$r, '/'), $rows ?: []);
+        $orphans = [];
+        foreach (glob('/var/www/*', GLOB_ONLYDIR) as $dir) {
+            $base = basename($dir);
+            if (in_array($base, ['adminpanel','html'], true)) { continue; }
+            $d = rtrim($dir, '/');
+            if (in_array($d, $rootsInDb, true)) { continue; }
+            if (in_array($d . '/public', $rootsInDb, true)) { continue; }
+            $orphans[] = ['name' => $base, 'path' => $dir];
+        }
+        usort($orphans, fn($a,$b)=>strcmp($a['name'],$b['name']));
+        Response::view('sites/index', compact('sites','orphans'));
     }
 
     public function create(): void
