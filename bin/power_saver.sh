@@ -168,12 +168,8 @@ case "$cmd" in
                 # Choix des sorties ciblées
                 outputs=()
                 if [[ -n "$out_req" ]]; then
-                  if [[ -n "${enabled[$out_req]:-}" ]]; then
-                    outputs+=("$out_req")
-                  else
-                    # Sortie inconnue -> ne rien faire; l'UI masquera le bouton via status.
-                    emit_status_json; exit 0
-                  fi
+                  # Toujours tenter d'agir sur la sortie demandée, même si elle n'a pas été parsée
+                  outputs+=("$out_req")
                 else
                   for k in "${!enabled[@]}"; do outputs+=("$k"); done
                   IFS=$'\n' outputs=($(sort <<<"${outputs[*]}")); unset IFS
