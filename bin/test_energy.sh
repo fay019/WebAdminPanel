@@ -16,9 +16,14 @@ have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 hr() { printf '\n%s\n' '------------------------------------------------------------'; }
 
-printf 'Energy console test — %s\n' "$(date -Is)"
+now=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date)
+printf 'Energy console test — %s\n' "$now"
 echo "Resolved PANEL_DIR=$PANEL_DIR"
 echo "Using SCRIPT=$SCRIPT"
+# Check sudo -n availability (NOPASSWD expected on target host)
+if ! sudo -n true 2>/dev/null; then
+  echo "WARN: sudo -n is not permitted in this environment; commands may fail unless NOPASSWD is configured."
+fi
 if [[ ! -x "$SCRIPT" ]]; then echo "ERROR: script not found or not executable: $SCRIPT"; fi
 
 hr; echo "1) Wayland session detection:"; hr
