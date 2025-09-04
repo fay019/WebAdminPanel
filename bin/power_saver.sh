@@ -123,9 +123,12 @@ case "$cmd" in
                   emit_status_json; exit 0
                 fi
 
-                # Lister sorties HDMI + Enabled + preferred + premier mode disponible
+                # Lister sorties HDMI + Enabled + preferred + premier mode disponible + largeur courante
+                # On utilisera la somme des largeurs des sorties déjà actives pour positionner la cible à droite
+                # afin d'éviter un chevauchement (qui peut conduire à un écran noir/éteint selon le WM).
+                # Exemple de ligne mode: "  1920x1080 px, 60.000000 Hz (preferred, current)"
                 mapfile -t lines < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr)
-                declare -A enabled preferred firstmode
+                declare -A enabled preferred firstmode curwidth
                 curr_out=""
                 for ln in "${lines[@]}"; do
                   if [[ "$ln" =~ ^(HDMI-A-[0-9]) ]]; then
@@ -133,6 +136,7 @@ case "$cmd" in
                     enabled["$curr_out"]="unknown"
                     preferred["$curr_out"]=""
                     firstmode["$curr_out"]=""
+                    curwidth["$curr_out"]=0
                     continue
                   fi
                   # Enabled: yes|no
@@ -141,11 +145,15 @@ case "$cmd" in
                     continue
                   fi
                   # Modes: ex "  3440x1440 px, 59.973000 Hz (preferred, current)"
-                  if [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+([0-9]+x[0-9]+)[[:space:]]+px,[[:space:]]+([0-9.]+)[[:space:]]+Hz ]]; then
-                    mode_id="${BASH_REMATCH[1]}@${BASH_REMATCH[2]}"
+                  if [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+([0-9]+)x([0-9]+)[[:space:]]+px,[[:space:]]+([0-9.]+)[[:space:]]+Hz ]]; then
+                    mode_id="${BASH_REMATCH[1]}x${BASH_REMATCH[2]}@${BASH_REMATCH[3]}"
                     [[ -z "${firstmode[$curr_out]}" ]] && firstmode["$curr_out"]="$mode_id"
                     if [[ "$ln" =~ \(preferred ]]; then
                       preferred["$curr_out"]="$mode_id"
+                    fi
+                    # si (current) est mentionné, retenir la largeur courante
+                    if [[ "$ln" =~ \(.*current.*\) ]]; then
+                      curwidth["$curr_out"]="${BASH_REMATCH[1]}"
                     fi
                   fi
                 done
@@ -187,6 +195,18 @@ case "$cmd" in
                 }
 
                 # Anti-flicker + séquence ON robuste
+                # Calculer position de base (x) en additionnant les largeurs des sorties déjà actives
+                base_x=0
+                if [[ -n "$out_req" ]]; then
+                  for k in "${!enabled[@]}"; do
+                    if [[ "$k" != "$out_req" && "${enabled[$k]}" == "on" ]]; then
+                      wx=${curwidth[$k]:-0}
+                      [[ -n "$wx" ]] || wx=0
+                      (( base_x += wx ))
+                    fi
+                  done
+                fi
+
                 for o in "${outputs[@]}"; do
                   want="$([[ "$act" == "1" ]] && echo on || echo off)"
                   curr="${enabled[$o]:-unknown}"
@@ -213,9 +233,9 @@ case "$cmd" in
                       wlr-randr --output "$o" --on --mode "$pref" >/dev/null 2>&1 || true
                     if wait_enabled "$o" 1500; then continue; fi
 
-                    # 3) --on --pos 0,0 --mode <preferred> (certains WM demandent une position)
+                    # 3) --on --pos base_x,0 --mode <preferred> (éviter le chevauchement)
                     sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
-                      wlr-randr --output "$o" --on --pos 0,0 --mode "$pref" >/dev/null 2>&1 || true
+                      wlr-randr --output "$o" --on --pos ${base_x},0 --mode "$pref" >/dev/null 2>&1 || true
                     if wait_enabled "$o" 1500; then continue; fi
                   fi
 
@@ -226,10 +246,13 @@ case "$cmd" in
                     if wait_enabled "$o" 1500; then continue; fi
                   fi
 
-                  # 5) Dernier essai simple + reposition + scale 1
+                  # 5) Dernier essai: cycle off->on avec position calculée et scale 1
                   sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
-                    wlr-randr --output "$o" --on --pos 0,0 --scale 1 >/dev/null 2>&1 || true
-                  wait_enabled "$o" 1500 || true
+                    wlr-randr --output "$o" --off >/dev/null 2>&1 || true
+                  sleep 0.2
+                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                    wlr-randr --output "$o" --on --pos ${base_x},0 --scale 1 ${pref:+--mode "$pref"} >/dev/null 2>&1 || true
+                  wait_enabled "$o" 1800 || true
                 done
 
                 emit_status_json
