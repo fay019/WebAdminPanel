@@ -12,6 +12,7 @@
     const $wifi   = $('#ps-wifi');
     const $bt     = $('#ps-bt');
     const hdmiBtns = $$('.ps-hdmi');
+    const show = (el, v) => el && (el.style.display = v ? '' : 'none');
 
     const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || (window.CSRF_TOKEN||'');
 
@@ -30,25 +31,41 @@
     };
 
     const render = (j) => {
-        // Texte global
         const hdmiTxt = (j.hdmi === 1 ? 'on' : (j.hdmi === 0 ? 'off' : 'n/a'));
         if ($status) $status.textContent = `HDMI: ${hdmiTxt} · Wi-Fi: ${j.wifi} · BT: ${j.bluetooth}`;
 
-        // HDMI par sortie si dispo (clé optionnelle j.hdmi_map)
         const map = j.hdmi_map || {};
         hdmiBtns.forEach(btn => {
             const out = btn.dataset.output;
-            const st = map[out]; // "on" | "off" | undefined
-            if (st === 'on') { setPressed(btn, true); setDisabled(btn, false); }
-            else if (st === 'off') { setPressed(btn, false); setDisabled(btn, false); }
-            else { // sortie inconnue/non connectée
+            const st  = map[out]; // "on" | "off" | undefined
+            if (st === 'on') {
+                setPressed(btn, true);
+                btn.classList.add('ok');
+                setDisabled(btn, false);
+                show(btn, true);
+            } else if (st === 'off') {
                 setPressed(btn, false);
+                btn.classList.remove('ok');
+                setDisabled(btn, false);
+                show(btn, true);
+            } else {
+                // Sortie inconnue/non connectée → masquer
+                setPressed(btn, false);
+                btn.classList.remove('ok');
                 setDisabled(btn, true);
+                show(btn, false);
             }
         });
 
-        setPressed($wifi, j.wifi === 'on');
-        setPressed($bt,   j.bluetooth === 'on');
+        // Wi-Fi / BT coloration
+        if ($wifi) {
+            setPressed($wifi, j.wifi === 'on');
+            j.wifi === 'on' ? $wifi.classList.add('ok') : $wifi.classList.remove('ok');
+        }
+        if ($bt) {
+            setPressed($bt, j.bluetooth === 'on');
+            j.bluetooth === 'on' ? $bt.classList.add('ok') : $bt.classList.remove('ok');
+        }
     };
 
     const getStatus = () => fetchJSON(EP.status).then(render).catch(() => {

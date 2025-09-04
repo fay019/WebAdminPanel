@@ -122,18 +122,22 @@ case "$cmd" in
                 emit_status_json; exit 0
               fi
 
-              # Lister toutes les sorties HDMI + Enabled yes/no
-              mapfile -t lines < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr)
-              declare -A enabled
-              curr_out=""
-              for ln in "${lines[@]}"; do
-                if [[ "$ln" =~ ^(HDMI-A-[0-9]) ]]; then
-                  curr_out="${BASH_REMATCH[1]}"
-                  enabled["$curr_out"]="unknown"
-                elif [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+Enabled:\ (yes|no)$ ]]; then
-                  [[ "${BASH_REMATCH[1]}" == "yes" ]] && enabled["$curr_out"]="on" || enabled["$curr_out"]="off"
-                fi
-              done
+              # Lister toutes les sorties HDMI + Enabled yes/no + preferred mode
+                mapfile -t lines < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr)
+                declare -A enabled preferred
+                curr_out=""
+                for ln in "${lines[@]}"; do
+                  if [[ "$ln" =~ ^(HDMI-A-[0-9]) ]]; then
+                    curr_out="${BASH_REMATCH[1]}"
+                    enabled["$curr_out"]="unknown"
+                    preferred["$curr_out"]=""
+                  elif [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+Enabled:\ (yes|no)$ ]]; then
+                    [[ "${BASH_REMATCH[1]}" == "yes" ]] && enabled["$curr_out"]="on" || enabled["$curr_out"]="off"
+                  elif [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+([0-9]+x[0-9]+)[[:space:]]+px,\ ([0-9.]+)[[:space:]]+Hz\ \(preferred ]]; then
+                    # Ex: "  3440x1440 px, 59.973000 Hz (preferred, current)"
+                    preferred["$curr_out"]="${BASH_REMATCH[1]}@${BASH_REMATCH[2]}"
+                  fi
+                done
 
               # Choix des sorties ciblées
               outputs=()
@@ -152,17 +156,24 @@ case "$cmd" in
 
               # Anti-flicker: ne pas relancer si l'état demandé = état courant
               for o in "${outputs[@]}"; do
-                want="$([[ "$act" == "1" ]] && echo on || echo off)"
-                curr="${enabled[$o]:-unknown}"
-                [[ "$curr" == "$want" ]] && continue
-                if [[ "$act" == "1" ]]; then
-                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
-                    wlr-randr --output "$o" --on >/dev/null 2>&1 || true
-                else
-                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
-                    wlr-randr --output "$o" --off >/dev/null 2>&1 || true
-                fi
-              done
+                  want="$([[ "$act" == "1" ]] && echo on || echo off)"
+                  curr="${enabled[$o]:-unknown}"
+                  [[ "$curr" == "$want" ]] && continue  # anti-flicker
+
+                  if [[ "$act" == "1" ]]; then
+                    pref="${preferred[$o]:-}"
+                    if [[ -n "$pref" ]]; then
+                      sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                        wlr-randr --output "$o" --on --mode "$pref" >/dev/null 2>&1 || true
+                    else
+                      sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                        wlr-randr --output "$o" --on >/dev/null 2>&1 || true
+                    fi
+                  else
+                    sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                      wlr-randr --output "$o" --off >/dev/null 2>&1 || true
+                  fi
+                done
 
               emit_status_json
               ;;
