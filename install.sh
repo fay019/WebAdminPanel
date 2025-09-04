@@ -155,10 +155,14 @@ mk_dir "$LOGS_DIR"
 chown_code_tree
 chown_runtime_dirs
 
-echo "[1b/7] Marquer bin/*.sh comme exécutables (si présents)"
+echo "[1b/7] Marquer bin/*.sh comme exécutables + normaliser (CRLF) + droits de traversée"
 if compgen -G "$PANEL_DIR/bin/*.sh" >/dev/null 2>&1; then
-  sudo chmod +x "$PANEL_DIR/bin/"*.sh
-  echo "  - bin/*.sh -> +x"
+  sudo chmod +x "$PANEL_DIR/bin/"*.sh || true
+  sudo sed -i 's/\r$//' "$PANEL_DIR/bin/"*.sh 2>/dev/null || true
+  sudo sed -i '1s/\r$//' "$PANEL_DIR/bin/"*.sh 2>/dev/null || true
+  # Dossiers traversables (sudo a besoin du +x sur chaque répertoire du chemin)
+  sudo chmod 755 "$PANEL_DIR" "$PANEL_DIR/bin" || true
+  echo "  - bin/*.sh -> +x ; CRLF nettoyé ; dossiers +x"
 else
   echo "  - Aucun script dans $PANEL_DIR/bin pour l’instant (skip)"
 fi
@@ -272,6 +276,16 @@ if [[ ! -f "$SUDOERS_FILE" ]] || ! grep -Fq "$PANEL_DIR_ABS/bin/*" "$SUDOERS_FIL
   fi
 else
   echo "  - sudoers déjà présent (skip)"
+fi
+
+echo "[5b/7] PHP-FPM: injecter env[PANEL_DIR] pour l’app"
+PHPFPM_POOL_CONF="/etc/php/${PHP_VER}/fpm/pool.d/www.conf"
+if ! grep -q '^env\[PANEL_DIR\]' "$PHPFPM_POOL_CONF" ; then
+  echo "env[PANEL_DIR] = $PANEL_DIR" | sudo tee -a "$PHPFPM_POOL_CONF" >/dev/null
+  sudo systemctl reload "php${PHP_VER}-fpm"
+  echo "  - env[PANEL_DIR] ajouté et PHP-FPM rechargé"
+else
+  echo "  - env[PANEL_DIR] déjà présent (skip)"
 fi
 
 echo "[6/7] Vhost Nginx"
