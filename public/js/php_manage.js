@@ -62,11 +62,15 @@
       if (!window.confirm(btn.getAttribute('data-confirm'))) return;
     }
     const fd = new FormData(form);
+    // include the clicked button name/value (not included by default when building from form)
+    if (btn.name) { fd.set(btn.name, btn.value || ''); }
     // normalize version fields (preserve legacy names)
     if (!fd.get('ver') && fd.get('version')){ fd.set('ver', fd.get('version')); }
     const custom = fd.get('ver_custom');
     if (custom){ fd.set('ver', custom); }
     fd.set('ajax', '1');
+    // legacy hint: also set stream=1 (harmless on new endpoint)
+    fd.set('stream', '1');
     streamPost('/php/manage/stream', fd);
   });
 })();
