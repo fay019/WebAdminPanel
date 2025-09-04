@@ -56,30 +56,64 @@
   }
 
   // Attach to forms/buttons with data-stream="1"
+  // Utilitaires modale de confirmation locale (sans dépendre de app.js)
+  const cm = document.getElementById('confirm-modal');
+  const cmMsg = cm ? document.getElementById('cm-message') : null;
+  const cmOk = cm ? document.getElementById('cm-okay') : null;
+  const cmCancel = cm ? document.getElementById('cm-cancel') : null;
+  function openConfirm(message, onOk){
+    if (!cm || !cmMsg || !cmOk) { return false; }
+    cmMsg.textContent = message || 'Confirmer ?';
+    cm.hidden = false;
+    const handler = function(e){ e.preventDefault(); closeConfirm(); onOk && onOk(); };
+    cmOk.addEventListener('click', handler, { once:true });
+    if (cmCancel) cmCancel.addEventListener('click', () => closeConfirm(), { once:true });
+    function esc(e){ if (e.key==='Escape'){ closeConfirm(); document.removeEventListener('keydown', esc); } }
+    document.addEventListener('keydown', esc);
+    return true;
+  }
+  function closeConfirm(){ if (cm) cm.hidden = true; }
+
+  // 1) Boutons avec confirmation + stream: utiliser la modale locale puis streamer
+  document.addEventListener('click', function(ev){
+    const btn = ev.target.closest('button[data-stream="1"][data-confirm], input[type="submit"][data-stream="1"][data-confirm]');
+    if (!btn) return;
+    const form = btn.closest('form');
+    if (!form) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const msg = btn.getAttribute('data-confirm') || form.getAttribute('data-confirm') || 'Confirmer ?';
+    const proceed = () => {
+      const fd = new FormData(form);
+      if (btn.name) { fd.set(btn.name, btn.value || ''); }
+      if (!fd.get('ver') && fd.get('version')){ fd.set('ver', fd.get('version')); }
+      const custom = fd.get('ver_custom'); if (custom){ fd.set('ver', custom); }
+      fd.set('ajax', '1'); fd.set('stream', '1');
+      const action = btn.value || fd.get('action') || '';
+      streamPost('/php/manage/stream', fd, action);
+    };
+    if (!openConfirm(msg, proceed)) {
+      // fallback si pas de modale: continuer sans modale
+      proceed();
+    }
+  });
+
+  // 2) Pour les boutons stream SANS confirmation, intercepter le clic et streamer directement
   document.addEventListener('click', function(ev){
     const btn = ev.target.closest('button[data-stream="1"]');
     if (!btn) return;
     const form = btn.closest('form');
     if (!form) return;
-    // Prevent the generic app.js confirm handler from firing as well (double confirm)
+    // Si une confirmation est demandée (data-confirm), laisser app.js gérer la modale
+    if (btn.hasAttribute('data-confirm') || form.hasAttribute('data-confirm')) return;
     ev.preventDefault();
-    ev.stopPropagation();
-    ev.stopImmediatePropagation?.();
-    if (btn.hasAttribute('data-confirm')){
-      if (!window.confirm(btn.getAttribute('data-confirm'))) return;
-    }
     const fd = new FormData(form);
-    // include the clicked button name/value (not included by default when building from form)
     if (btn.name) { fd.set(btn.name, btn.value || ''); }
-    // normalize version fields (preserve legacy names)
     if (!fd.get('ver') && fd.get('version')){ fd.set('ver', fd.get('version')); }
     const custom = fd.get('ver_custom');
     if (custom){ fd.set('ver', custom); }
     fd.set('ajax', '1');
-    // legacy hint: also set stream=1 (harmless on new endpoint)
     fd.set('stream', '1');
-    // Set a hint to skip global confirm in case other listeners see this event
-    try { btn.setAttribute('data-confirm-handled', '1'); } catch(e) {}
     const action = btn.value || fd.get('action') || '';
     streamPost('/php/manage/stream', fd, action);
   });

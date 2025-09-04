@@ -198,8 +198,6 @@
         if (!btn) return;
         // Ne pas intercepter les boutons power (gérés par un flux dédié)
         if (btn.hasAttribute('data-power')) return;
-        // Ne pas doubler la confirmation si déjà gérée par un handler spécifique (ex: php_manage.js)
-        if (btn.hasAttribute('data-confirm-handled')) return;
 
         const msg = btn.getAttribute('data-confirm') || 'Confirmer ?';
         e.preventDefault();
@@ -208,7 +206,7 @@
         const proceed = () => {
             const form = btn.closest('form');
             if (form) {
-                // S'assurer que le name/value du bouton est transmis au submit
+                // Soumission standard: s'assurer que le name/value du bouton est transmis
                 let temp;
                 if (btn.name) {
                     temp = document.createElement('input');
