@@ -7,7 +7,7 @@
 #   power_saver.sh bluetooth on|off
 #
 # Sorties JSON :
-#   {"hdmi":0|1,"wifi":"on|off","bluetooth":"on|off"}
+#   {"hdmi":0|1,"wifi":"on|off","bluetooth":"on|off","hdmi_map":{ "HDMI-A-1":"on|off", ... }}
 #
 # Remarques :
 # - HDMI : nécessite vcgencmd (firmware Raspberry Pi) et KMS/VC4 actif
@@ -174,6 +174,18 @@ case "$cmd" in
                     ' | grep -qx "yes"
                 }
 
+                # Attendre qu'une sortie atteigne l'état Enabled=yes avec timeout
+                wait_enabled() {
+                  local out="$1" timeout_ms="${2:-1500}" interval_ms=150
+                  local elapsed=0
+                  while (( elapsed <= timeout_ms )); do
+                    if is_enabled "$out"; then return 0; fi
+                    sleep 0.15
+                    (( elapsed += interval_ms ))
+                  done
+                  return 1
+                }
+
                 # Anti-flicker + séquence ON robuste
                 for o in "${outputs[@]}"; do
                   want="$([[ "$act" == "1" ]] && echo on || echo off)"
@@ -190,33 +202,34 @@ case "$cmd" in
                   pref="${preferred[$o]:-}"
                   fm="${firstmode[$o]:-}"
 
-                  # 1) --on
+                  # 1) --on + attente
                   sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
                     wlr-randr --output "$o" --on >/dev/null 2>&1 || true
-                  is_enabled "$o" && continue
+                  if wait_enabled "$o" 1200; then continue; fi
 
                   # 2) --on --mode <preferred>
                   if [[ -n "$pref" ]]; then
                     sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
                       wlr-randr --output "$o" --on --mode "$pref" >/dev/null 2>&1 || true
-                    is_enabled "$o" && continue
+                    if wait_enabled "$o" 1500; then continue; fi
 
                     # 3) --on --pos 0,0 --mode <preferred> (certains WM demandent une position)
                     sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
                       wlr-randr --output "$o" --on --pos 0,0 --mode "$pref" >/dev/null 2>&1 || true
-                    is_enabled "$o" && continue
+                    if wait_enabled "$o" 1500; then continue; fi
                   fi
 
                   # 4) Fallback: premier mode vu
                   if [[ -n "$fm" ]]; then
                     sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
                       wlr-randr --output "$o" --on --mode "$fm" >/dev/null 2>&1 || true
-                    is_enabled "$o" && continue
+                    if wait_enabled "$o" 1500; then continue; fi
                   fi
 
-                  # 5) Dernier essai simple
+                  # 5) Dernier essai simple + reposition + scale 1
                   sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
-                    wlr-randr --output "$o" --on >/dev/null 2>&1 || true
+                    wlr-randr --output "$o" --on --pos 0,0 --scale 1 >/dev/null 2>&1 || true
+                  wait_enabled "$o" 1500 || true
                 done
 
                 emit_status_json

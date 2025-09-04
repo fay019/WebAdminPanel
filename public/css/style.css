@@ -877,6 +877,21 @@ code {
     color: var(--muted);
 }
 
+/* Toolbar: power left, toggles right, on same line */
+.ps-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 8px 0 16px;
+    gap: 12px;
+}
+.ps-left, .ps-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Make icon links look like buttons with same height */
+.btn-icon { display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 10px; border: 1px solid #253154; background: #1e293b; color: #e6e9f2; }
+.btn-icon:hover { filter: brightness(1.1); }
+.btn-icon img.icon-btn { width: 22px; height: 22px; display: block; }
+
 .ps-row {
     display: flex;
     gap: 10px;

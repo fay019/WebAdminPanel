@@ -6,48 +6,47 @@
 <div class="card">
     <h2>Dashboard</h2>
 
-    <!-- Commandes alimentation via ancres cliquables (confirm + POST JS) -->
-    <div class="actions" style="margin:8px 0 16px">
-        <a href="/system_power.php?stream=1"
-           class="icon-link"
-           data-confirm="⚠️ Éteindre la machine dans ~30s ?"
-           data-action="shutdown"
-           data-ajax="1"
-           data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"
-           style="display:inline-block;margin-right:8px">
-            <img src="/img/power.svg" alt="Éteindre" title="Éteindre" class="icon-btn" />
-        </a>
+    <!-- Barre d'actions: Power à gauche, Écrans/Wi‑Fi/BT à droite -->
+    <div class="ps-toolbar">
+        <div class="ps-left actions">
+            <a href="/system_power.php?stream=1"
+               class="icon-link btn btn-icon"
+               data-confirm="⚠️ Éteindre la machine dans ~30s ?"
+               data-action="shutdown"
+               data-ajax="1"
+               data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+                <img src="/img/power.svg" alt="Éteindre" title="Éteindre" class="icon-btn" />
+            </a>
 
+            <a href="/system_power.php?stream=1"
+               class="icon-link btn btn-icon"
+               data-confirm="🔄 Redémarrer la machine dans ~30s ?"
+               data-action="reboot"
+               data-ajax="1"
+               data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+                <img src="/img/reload.svg" alt="Redémarrer" title="Redémarrer" class="icon-btn" />
+            </a>
+        </div>
 
-        <a href="/system_power.php?stream=1"
-           class="icon-link"
-           data-confirm="🔄 Redémarrer la machine dans ~30s ?"
-           data-action="reboot"
-           data-ajax="1"
-           data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"
-           style="display:inline-block">
-            <img src="/img/reload.svg" alt="Redémarrer" title="Redémarrer" class="icon-btn" />
-        </a>
-    </div>
+        <div class="ps-right ps-row">
+            <button type="button" class="ps-hdmi btn" data-output="HDMI-A-1" aria-pressed="false" title="HDMI-A-1">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h18v10H3zM8 19h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>HDMI-A-1</span>
+            </button>
+            <button type="button" class="ps-hdmi btn" data-output="HDMI-A-2" aria-pressed="false" title="HDMI-A-2">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h18v10H3zM8 19h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>HDMI-A-2</span>
+            </button>
 
-    <div class="ps-row">
-        <button type="button" class="ps-hdmi btn" data-output="HDMI-A-1" aria-pressed="false" title="HDMI-A-1">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h18v10H3zM8 19h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>HDMI-A-1</span>
-        </button>
-        <button type="button" class="ps-hdmi btn" data-output="HDMI-A-2" aria-pressed="false" title="HDMI-A-2">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h18v10H3zM8 19h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>HDMI-A-2</span>
-        </button>
-
-        <button type="button" id="ps-wifi" class="btn" aria-pressed="false" title="Wi-Fi">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9a12 12 0 0 1 16 0M7 12a8 8 0 0 1 10 0M10 15a4 4 0 0 1 4 0M12 19h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Wi-Fi</span>
-        </button>
-        <button type="button" id="ps-bt" class="btn" aria-pressed="false" title="Bluetooth">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v18l6-6-6-6 6-6-6 6-6-6m6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>BT</span>
-        </button>
+            <button type="button" id="ps-wifi" class="btn" aria-pressed="false" title="Wi-Fi">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9a12 12 0 0 1 16 0M7 12a8 8 0 0 1 10 0M10 15a4 4 0 0 1 4 0M12 19h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Wi-Fi</span>
+            </button>
+            <button type="button" id="ps-bt" class="btn" aria-pressed="false" title="Bluetooth">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v18l6-6-6-6 6-6-6 6-6-6m6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>BT</span>
+            </button>
+        </div>
     </div>
     <div id="ps-status" class="small">Chargement…</div>
 
