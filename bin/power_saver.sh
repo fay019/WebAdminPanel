@@ -47,7 +47,7 @@ hdmi_status() {
     local in_hdmi=0
     while IFS= read -r line; do
       # Début de bloc pour un connecteur HDMI (token en début de ligne)
-      if [[ "$line" =~ ^(HDMI-[A-Za-z]-[0-9]+)\b ]]; then
+      if [[ "$line" =~ ^(HDMI-[A-Za-z0-9:-]+)\b ]]; then
         in_hdmi=1
         continue
       fi
@@ -59,7 +59,7 @@ hdmi_status() {
       fi
       # Si on rencontre une ligne d'entête d'une autre sortie non HDMI, sortir du bloc
       if [[ "$line" =~ ^([A-Za-z0-9-]+)\b ]] && [[ ! "$line" =~ ^HDMI- ]]; then in_hdmi=0; fi
-    done < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr)
+    done < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr 2>/dev/null)
     echo -n "$any"; return
   fi
   # Fallback DRM câble connecté (moins précis)
@@ -113,7 +113,7 @@ build_hdmi_map() {
       curr=""; key=""; val=""
       continue
     fi
-  done < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr)
+  done < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr 2>/dev/null)
   json+="}"
   echo "$json"
 }
@@ -146,11 +146,11 @@ case "$cmd" in
                 # On utilisera la somme des largeurs des sorties déjà actives pour positionner la cible à droite
                 # afin d'éviter un chevauchement (qui peut conduire à un écran noir/éteint selon le WM).
                 # Exemple de ligne mode: "  1920x1080 px, 60.000000 Hz (preferred, current)"
-                mapfile -t lines < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr)
+                mapfile -t lines < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr 2>/dev/null)
                 declare -A enabled preferred firstmode curwidth
                 curr_out=""
                 for ln in "${lines[@]}"; do
-                  if [[ "$ln" =~ ^(HDMI-A-[0-9]) ]]; then
+                  if [[ "$ln" =~ ^(HDMI-[A-Za-z0-9:-]+)\b ]]; then
                     curr_out="${BASH_REMATCH[1]}"
                     enabled["$curr_out"]="unknown"
                     preferred["$curr_out"]=""
@@ -195,7 +195,7 @@ case "$cmd" in
                 is_enabled() {
                   local out="$1"
                   sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
-                    wlr-randr | awk -v O="$out" '
+                    wlr-randr 2>/dev/null | awk -v O="$out" '
                       $1==O{hit=1}
                       hit && $1=="Enabled:"{print $2; exit}
                     ' | grep -qx "yes"
