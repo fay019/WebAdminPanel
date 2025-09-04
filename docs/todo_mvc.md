@@ -72,3 +72,27 @@ Checklist avec cases à cocher. Les éléments déjà réalisés sont cochés, y
 Notes:
 - Les fichiers legacy restent mais redirigent (302) vers leurs équivalents MVC.
 - Éviter les gros refactors; consolider progressivement.
+
+
+## 11) Module “Liaison Domaine ↔ Site (vhost+SSL)”
+- [ ] Modèle/DB — Table `domains`: `id`, `site_id` (FK), `domain`, `aliases` (json), `php_version`, `force_https` (bool), `status` (pending/active/error), `last_check_at`, `created_at`, `updated_at)
+- [ ] Backend (fonctions/services)
+  - [ ] `DomainBinder::createVhost(site_id, domain, aliases[], php_version, force_https)`
+  - [ ] `DomainBinder::testConfig()` -> bool + stderr
+  - [ ] `DomainBinder::reloadNginx()`
+  - [ ] `DomainBinder::issueCertificate(domain, aliases[])`  // Let’s Encrypt
+  - [ ] `DomainBinder::healthCheck(domain)`  // DNS, HTTP, cert expiry
+  - [ ] (Option) `DnsProvider::upsertCname(www->TP-Link DDNS, apex flattening si Cloudflare activé)`
+- [ ] Intégration avec Sites existants
+  - [ ] Sur la page d’un site: onglet “Domaines” (CRUD domaines)
+  - [ ] Sélecteur de version PHP (8.2/8.3/8.4) par domaine
+  - [ ] Boutons: Tester config, Générer/renouveler SSL, Recharger Nginx
+- [ ] Sécurité & journalisation
+  - [ ] Validation stricte des domaines/aliases
+  - [ ] Whitelist des doc_roots (réutiliser celui du site)
+  - [ ] `Audit::log('domains.create|update|delete', payload)`
+- [ ] UI/UX
+  - [ ] Badge statut (DNS/HTTP/SSL): ✅/⚠️/❌ + dates d’expiration cert.
+  - [ ] Aide DNS (CNAME -> TP-Link DDNS; apex via ALIAS/flattening)
+
+> Important: seulement ajouter ces items à la ToDoList, pas coder maintenant.

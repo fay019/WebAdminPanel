@@ -194,6 +194,8 @@ legacy *.php       # Entrées legacy gardées (ex: php_manage.php → 302)
 
 Voir aussi: docs/todo_mvc.md pour la liste détaillée des manques MVC et les priorités à court terme.
 
+Note: un module "Liaison Domaine ↔ Site (vhost+SSL)" est planifié (DB `domains`, services DomainBinder/DnsProvider, intégration Sites, sécurité/audit, UX). Voir la section 11 de docs/todo_mvc.md.
+
 ---
 
 ## ⚠️ Limites connues
