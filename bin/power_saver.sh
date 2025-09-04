@@ -112,71 +112,115 @@ case "$cmd" in
   status|"")
     emit_status_json
     ;;
-            hdmi)
-              # Usage: power_saver.sh hdmi 0|1 [OUTPUT_NAME]
-              act="${arg:-}"; out_req="${3:-}"
-              [[ "$act" == "0" || "$act" == "1" ]] || { emit_status_json; exit 0; }
+              hdmi)
+                # Usage: power_saver.sh hdmi 0|1 [OUTPUT_NAME]
+                act="${arg:-}"; out_req="${3:-}"
+                [[ "$act" == "0" || "$act" == "1" ]] || { emit_status_json; exit 0; }
 
-              read -r GUI_USER GUI_RT GUI_WLD <<<"$(get_wayland_env || true)"
-              if [[ -z "$GUI_USER" || -z "$GUI_RT" || -z "$GUI_WLD" || ! $(command -v wlr-randr) ]]; then
-                emit_status_json; exit 0
-              fi
+                # Trouver une session Wayland active + vérifier wlr-randr
+                read -r GUI_USER GUI_RT GUI_WLD <<<"$(get_wayland_env || true)"
+                if [[ -z "$GUI_USER" || -z "$GUI_RT" || -z "$GUI_WLD" || ! $(command -v wlr-randr) ]]; then
+                  emit_status_json; exit 0
+                fi
 
-              # Lister toutes les sorties HDMI + Enabled yes/no + preferred mode
+                # Lister sorties HDMI + Enabled + preferred + premier mode disponible
                 mapfile -t lines < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr)
-                declare -A enabled preferred
+                declare -A enabled preferred firstmode
                 curr_out=""
                 for ln in "${lines[@]}"; do
                   if [[ "$ln" =~ ^(HDMI-A-[0-9]) ]]; then
                     curr_out="${BASH_REMATCH[1]}"
                     enabled["$curr_out"]="unknown"
                     preferred["$curr_out"]=""
-                  elif [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+Enabled:\ (yes|no)$ ]]; then
+                    firstmode["$curr_out"]=""
+                    continue
+                  fi
+                  # Enabled: yes|no
+                  if [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+Enabled:\ (yes|no)$ ]]; then
                     [[ "${BASH_REMATCH[1]}" == "yes" ]] && enabled["$curr_out"]="on" || enabled["$curr_out"]="off"
-                  elif [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+([0-9]+x[0-9]+)[[:space:]]+px,\ ([0-9.]+)[[:space:]]+Hz\ \(preferred ]]; then
-                    # Ex: "  3440x1440 px, 59.973000 Hz (preferred, current)"
-                    preferred["$curr_out"]="${BASH_REMATCH[1]}@${BASH_REMATCH[2]}"
+                    continue
+                  fi
+                  # Modes: ex "  3440x1440 px, 59.973000 Hz (preferred, current)"
+                  if [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+([0-9]+x[0-9]+)[[:space:]]+px,[[:space:]]+([0-9.]+)[[:space:]]+Hz ]]; then
+                    mode_id="${BASH_REMATCH[1]}@${BASH_REMATCH[2]}"
+                    [[ -z "${firstmode[$curr_out]}" ]] && firstmode["$curr_out"]="$mode_id"
+                    if [[ "$ln" =~ \(preferred ]]; then
+                      preferred["$curr_out"]="$mode_id"
+                    fi
                   fi
                 done
 
-              # Choix des sorties ciblées
-              outputs=()
-              if [[ -n "$out_req" ]]; then
-                if [[ -n "${enabled[$out_req]:-}" ]]; then
-                  outputs+=("$out_req")
+                # Choix des sorties ciblées
+                outputs=()
+                if [[ -n "$out_req" ]]; then
+                  if [[ -n "${enabled[$out_req]:-}" ]]; then
+                    outputs+=("$out_req")
+                  else
+                    # Sortie inconnue -> ne rien faire; l'UI masquera le bouton via status.
+                    emit_status_json; exit 0
+                  fi
                 else
-                  # sortie inconnue -> ne rien faire mais renvoyer l'état (le front affichera un message)
-                  emit_status_json; exit 0
+                  for k in "${!enabled[@]}"; do outputs+=("$k"); done
+                  IFS=$'\n' outputs=($(sort <<<"${outputs[*]}")); unset IFS
                 fi
-              else
-                # Toutes les HDMI connues
-                for k in "${!enabled[@]}"; do outputs+=("$k"); done
-                IFS=$'\n' outputs=($(sort <<<"${outputs[*]}")); unset IFS
-              fi
 
-              # Anti-flicker: ne pas relancer si l'état demandé = état courant
-              for o in "${outputs[@]}"; do
+                # Helper: relire "Enabled: yes" pour une sortie donnée
+                is_enabled() {
+                  local out="$1"
+                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                    wlr-randr | awk -v O="$out" '
+                      $1==O{hit=1}
+                      hit && $1=="Enabled:"{print $2; exit}
+                    ' | grep -qx "yes"
+                }
+
+                # Anti-flicker + séquence ON robuste
+                for o in "${outputs[@]}"; do
                   want="$([[ "$act" == "1" ]] && echo on || echo off)"
                   curr="${enabled[$o]:-unknown}"
-                  [[ "$curr" == "$want" ]] && continue  # anti-flicker
+                  [[ "$curr" == "$want" ]] && continue
 
-                  if [[ "$act" == "1" ]]; then
-                    pref="${preferred[$o]:-}"
-                    if [[ -n "$pref" ]]; then
-                      sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
-                        wlr-randr --output "$o" --on --mode "$pref" >/dev/null 2>&1 || true
-                    else
-                      sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
-                        wlr-randr --output "$o" --on >/dev/null 2>&1 || true
-                    fi
-                  else
+                  if [[ "$act" == "0" ]]; then
                     sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
                       wlr-randr --output "$o" --off >/dev/null 2>&1 || true
+                    continue
                   fi
+
+                  # ON: essais progressifs
+                  pref="${preferred[$o]:-}"
+                  fm="${firstmode[$o]:-}"
+
+                  # 1) --on
+                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                    wlr-randr --output "$o" --on >/dev/null 2>&1 || true
+                  is_enabled "$o" && continue
+
+                  # 2) --on --mode <preferred>
+                  if [[ -n "$pref" ]]; then
+                    sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                      wlr-randr --output "$o" --on --mode "$pref" >/dev/null 2>&1 || true
+                    is_enabled "$o" && continue
+
+                    # 3) --on --pos 0,0 --mode <preferred> (certains WM demandent une position)
+                    sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                      wlr-randr --output "$o" --on --pos 0,0 --mode "$pref" >/dev/null 2>&1 || true
+                    is_enabled "$o" && continue
+                  fi
+
+                  # 4) Fallback: premier mode vu
+                  if [[ -n "$fm" ]]; then
+                    sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                      wlr-randr --output "$o" --on --mode "$fm" >/dev/null 2>&1 || true
+                    is_enabled "$o" && continue
+                  fi
+
+                  # 5) Dernier essai simple
+                  sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+                    wlr-randr --output "$o" --on >/dev/null 2>&1 || true
                 done
 
-              emit_status_json
-              ;;
+                emit_status_json
+                ;;
 
   wifi)
     [[ -n "$arg" ]] || die "missing arg (on|off)"
