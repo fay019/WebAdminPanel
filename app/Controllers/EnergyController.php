@@ -4,7 +4,18 @@ namespace App\Controllers;
 
 final class EnergyController
 {
-    private string $panelDir = '/srv/www/webadminpanel-v2';
+    private string $panelDir;
+
+    public function __construct()
+    {
+        $env = getenv('PANEL_DIR');
+        if ($env && is_dir($env)) {
+            $this->panelDir = rtrim($env, '/');
+        } else {
+            $root = realpath(__DIR__ . '/../../');
+            $this->panelDir = $root ? rtrim($root, '/') : '/srv/www/webadminpanel-v2';
+        }
+    }
 
     public function status(): void
     {
