@@ -1,5 +1,10 @@
 <?php
 declare(strict_types=1);
+// Legacy endpoint moved to MVC. Keep bookmarks working with a 302 redirect.
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$to = $id > 0 ? "/sites/{$id}/edit" : '/sites';
+header('Location: ' . $to, true, 302);
+exit;
 require_once __DIR__ . '/lib/auth.php'; require_login();
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/csrf.php';

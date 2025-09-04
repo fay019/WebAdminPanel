@@ -1,10 +1,8 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/lib/auth.php'; require_login();
-require_once __DIR__ . '/lib/db.php';
-require_once __DIR__ . '/lib/csrf.php';
-require_once __DIR__ . '/lib/validators.php';
-require_once __DIR__ . '/partials/flash.php';
+// Legacy endpoint moved to MVC. Keep bookmarks working with a 302 redirect.
+header('Location: /sites/create', true, 302);
+exit;
 
 function nginx_conf_exists(string $name): bool {
     return is_file("/etc/nginx/sites-available/{$name}.conf");
