@@ -40,14 +40,25 @@ get_wayland_env() {
 }
 
 hdmi_status() {
-  # Retourne 1 si au moins UNE sortie HDMI est Enabled, 0 si toutes Off, null si inconnu
+  # Retourne 1 si au moins UNE sortie HDMI est Enabled, 0 si toutes Off
   read -r GUI_USER GUI_RT GUI_WLD <<<"$(get_wayland_env || true)"
   if [[ -n "$GUI_USER" && -n "$GUI_RT" && -n "$GUI_WLD" && $(command -v wlr-randr) ]]; then
     local any=0
+    local in_hdmi=0
     while IFS= read -r line; do
-      # Exemple: "HDMI-A-2 ..." puis plus bas "  Enabled: yes"
-      if [[ "$line" =~ ^HDMI-A-[0-9] ]]; then curr="$line"
-      elif [[ "$line" =~ ^[[:space:]]+Enabled:\ yes$ ]]; then any=1; fi
+      # Début de bloc pour un connecteur HDMI (token en début de ligne)
+      if [[ "$line" =~ ^(HDMI-[A-Za-z]-[0-9]+)\b ]]; then
+        in_hdmi=1
+        continue
+      fi
+      # Si on est dans un bloc HDMI, regarder Enabled: yes
+      if (( in_hdmi )); then
+        if [[ "$line" =~ ^[[:space:]]+Enabled:[[:space:]]+yes$ ]]; then any=1; fi
+        # Fin de bloc si on arrive sur une nouvelle sortie (non fiable sans lookahead) →
+        # on se repose sur le fait qu'on cherche juste "any".
+      fi
+      # Si on rencontre une ligne d'entête d'une autre sortie non HDMI, sortir du bloc
+      if [[ "$line" =~ ^([A-Za-z0-9-]+)\b ]] && [[ ! "$line" =~ ^HDMI- ]]; then in_hdmi=0; fi
     done < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr)
     echo -n "$any"; return
   fi
@@ -82,17 +93,25 @@ build_hdmi_map() {
   if [[ -z "$GUI_USER" || -z "$GUI_RT" || -z "$GUI_WLD" || ! $(command -v wlr-randr) ]]; then
     echo "{}"; return
   fi
-  local curr key val json="{"
+  local curr="" key="" val="" json="{" wrote=0
   while IFS= read -r ln; do
-    if [[ "$ln" =~ ^(HDMI-A-[0-9]) ]]; then
-      [[ "$json" != "{" ]] && json+=","
-      curr="${BASH_REMATCH[1]}"
-      key="\"$curr\""
-      val="\"unknown\""
-    elif [[ -n "$curr" && "$ln" =~ ^[[:space:]]+Enabled:\ (yes|no)$ ]]; then
-      val="$([[ "${BASH_REMATCH[1]}" == "yes" ]] && echo '"on"' || echo '"off"')"
+    # Lignes d'entête d'une sortie; capturer le premier token (ex: HDMI-A-2)
+    if [[ "$ln" =~ ^([A-Za-z0-9-]+)\s ]]; then
+      local token="${BASH_REMATCH[1]}"
+      if [[ "$token" =~ ^HDMI- ]]; then
+        curr="$token"; key="\"$curr\""; val=""
+      else
+        curr=""; key=""; val=""
+      fi
+      continue
+    fi
+    # Ligne Enabled pour la sortie courante
+    if [[ -n "$curr" && "$ln" =~ ^[[:space:]]+Enabled:[[:space:]]+(yes|no)$ ]]; then
+      val=$([[ "${BASH_REMATCH[1]}" == "yes" ]] && echo '"on"' || echo '"off"')
+      [[ $wrote -eq 1 ]] && json+=","; wrote=1
       json+="$key:$val"
-      curr=""
+      curr=""; key=""; val=""
+      continue
     fi
   done < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr)
   json+="}"
