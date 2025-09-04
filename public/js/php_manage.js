@@ -21,8 +21,12 @@
   }
   if (closeBtn) closeBtn.addEventListener('click', closeOverlay);
 
-  async function streamPost(url, data){
-    openOverlay('Installation en cours…');
+  async function streamPost(url, data, action){
+    let t = 'Exécution en cours…';
+    if (action === 'install') t = 'Installation en cours…';
+    else if (action === 'remove') t = 'Désinstallation en cours…';
+    else if (action === 'restart') t = 'Redémarrage en cours…';
+    openOverlay(t);
     try{
       const res = await fetch(url, {
         method: 'POST',
@@ -57,7 +61,10 @@
     if (!btn) return;
     const form = btn.closest('form');
     if (!form) return;
+    // Prevent the generic app.js confirm handler from firing as well (double confirm)
     ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation?.();
     if (btn.hasAttribute('data-confirm')){
       if (!window.confirm(btn.getAttribute('data-confirm'))) return;
     }
@@ -71,6 +78,9 @@
     fd.set('ajax', '1');
     // legacy hint: also set stream=1 (harmless on new endpoint)
     fd.set('stream', '1');
-    streamPost('/php/manage/stream', fd);
+    // Set a hint to skip global confirm in case other listeners see this event
+    try { btn.setAttribute('data-confirm-handled', '1'); } catch(e) {}
+    const action = btn.value || fd.get('action') || '';
+    streamPost('/php/manage/stream', fd, action);
   });
 })();
