@@ -42,7 +42,7 @@ get_wayland_env() {
 hdmi_status() {
   # Retourne 1 si au moins UNE sortie HDMI est Enabled, 0 si toutes Off
   read -r GUI_USER GUI_RT GUI_WLD <<<"$(get_wayland_env || true)"
-  if [[ -n "$GUI_USER" && -n "$GUI_RT" && -n "$GUI_WLD" && $(command -v wlr-randr) ]]; then
+  if [[ -n "$GUI_USER" && -n "$GUI_RT" && -n "$GUI_WLD" ]] && have_cmd wlr-randr; then
     local any=0
     local in_hdmi=0
     while IFS= read -r line; do
@@ -53,7 +53,7 @@ hdmi_status() {
       fi
       # Si on est dans un bloc HDMI, regarder Enabled: yes
       if (( in_hdmi )); then
-        if [[ "$line" =~ ^[[:space:]]+Enabled:[[:space:]]+yes$ ]]; then any=1; fi
+        if [[ "$line" =~ Enabled:[[:space:]]*yes ]]; then any=1; fi
         # Fin de bloc si on arrive sur une nouvelle sortie (non fiable sans lookahead) →
         # on se repose sur le fait qu'on cherche juste "any".
       fi
@@ -90,23 +90,18 @@ bt_status() {
 
 build_hdmi_map() {
   read -r GUI_USER GUI_RT GUI_WLD <<<"$(get_wayland_env || true)"
-  if [[ -z "$GUI_USER" || -z "$GUI_RT" || -z "$GUI_WLD" || ! $(command -v wlr-randr) ]]; then
+  if [[ -z "$GUI_USER" || -z "$GUI_RT" || -z "$GUI_WLD" ]] || ! have_cmd wlr-randr; then
     echo "{}"; return
   fi
   local curr="" key="" val="" json="{" wrote=0
   while IFS= read -r ln; do
-    # Lignes d'entête d'une sortie; capturer le premier token (ex: HDMI-A-2)
-    if [[ "$ln" =~ ^([A-Za-z0-9-]+)\s ]]; then
-      local token="${BASH_REMATCH[1]}"
-      if [[ "$token" =~ ^HDMI- ]]; then
-        curr="$token"; key="\"$curr\""; val=""
-      else
-        curr=""; key=""; val=""
-      fi
+    # Début de bloc HDMI: token en début de ligne (HDMI-...)
+    if [[ "$ln" =~ ^(HDMI-[A-Za-z0-9:-]+)\b ]]; then
+      curr="${BASH_REMATCH[1]}"; key="\"$curr\""; val=""
       continue
     fi
     # Ligne Enabled pour la sortie courante
-    if [[ -n "$curr" && "$ln" =~ ^[[:space:]]+Enabled:[[:space:]]+(yes|no)$ ]]; then
+    if [[ -n "$curr" && "$ln" =~ Enabled:[[:space:]]*(yes|no) ]]; then
       val=$([[ "${BASH_REMATCH[1]}" == "yes" ]] && echo '"on"' || echo '"off"')
       [[ $wrote -eq 1 ]] && json+=","; wrote=1
       json+="$key:$val"
@@ -138,7 +133,7 @@ case "$cmd" in
 
                 # Trouver une session Wayland active + vérifier wlr-randr
                 read -r GUI_USER GUI_RT GUI_WLD <<<"$(get_wayland_env || true)"
-                if [[ -z "$GUI_USER" || -z "$GUI_RT" || -z "$GUI_WLD" || ! $(command -v wlr-randr) ]]; then
+                if [[ -z "$GUI_USER" || -z "$GUI_RT" || -z "$GUI_WLD" ]] || ! have_cmd wlr-randr; then
                   emit_status_json; exit 0
                 fi
 
@@ -159,7 +154,7 @@ case "$cmd" in
                     continue
                   fi
                   # Enabled: yes|no
-                  if [[ -n "$curr_out" && "$ln" =~ ^[[:space:]]+Enabled:\ (yes|no)$ ]]; then
+                  if [[ -n "$curr_out" && "$ln" =~ Enabled:[[:space:]]*(yes|no) ]]; then
                     [[ "${BASH_REMATCH[1]}" == "yes" ]] && enabled["$curr_out"]="on" || enabled["$curr_out"]="off"
                     continue
                   fi

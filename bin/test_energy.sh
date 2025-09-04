@@ -19,6 +19,7 @@ hr() { printf '\n%s\n' '--------------------------------------------------------
 printf 'Energy console test — %s\n' "$(date -Is)"
 echo "Resolved PANEL_DIR=$PANEL_DIR"
 echo "Using SCRIPT=$SCRIPT"
+if [[ ! -x "$SCRIPT" ]]; then echo "ERROR: script not found or not executable: $SCRIPT"; fi
 
 hr; echo "1) Wayland session detection:"; hr
 if have_cmd loginctl; then
