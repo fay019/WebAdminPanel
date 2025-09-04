@@ -220,6 +220,7 @@ case "$cmd" in
                   [[ "$curr" == "$want" ]] && continue
 
                   if [[ "$act" == "0" ]]; then
+                    # OFF simplifié et fiable, comme en console
                     sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
                       wlr-randr --output "$o" --off >/dev/null 2>&1 || true
                     continue
