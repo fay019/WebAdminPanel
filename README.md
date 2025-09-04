@@ -184,6 +184,14 @@ legacy *.php       # Entrées legacy gardées (ex: php_manage.php → 302)
 - [ ] Mode lecture seule
 - [ ] Gestion avancée multi-users (rôles)
 
+### Migration MVC (résumé)
+- [x] Users + PhpManage modules migrés en MVC
+- [x] Sites: contrôleur, vues, service, routes (incl. orphelins, supprimer+dossier)
+- [x] Navbar vers /sites et redirections legacy Sites
+- [ ] Page Compte `/account` (à faire)
+- [ ] Logout via POST CSRF (à faire)
+- [ ] i18n: unifier `lang/` vs `locales/`
+
 Voir aussi: docs/todo_mvc.md pour la liste détaillée des manques MVC et les priorités à court terme.
 
 ---
