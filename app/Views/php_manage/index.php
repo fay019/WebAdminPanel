@@ -92,4 +92,3 @@
     </div>
 </div>
 <script src="/js/php_manage.js" defer></script>
-<?php require __DIR__ . '/../partials/footer.php'; ?>
