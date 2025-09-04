@@ -43,24 +43,17 @@ hdmi_status() {
   # Retourne 1 si au moins UNE sortie HDMI est Enabled, 0 si toutes Off
   read -r GUI_USER GUI_RT GUI_WLD <<<"$(get_wayland_env || true)"
   if [[ -n "$GUI_USER" && -n "$GUI_RT" && -n "$GUI_WLD" ]] && have_cmd wlr-randr; then
-    local any=0
-    local in_hdmi=0
-    while IFS= read -r line; do
-      # Début de bloc pour un connecteur HDMI (token en début de ligne)
-      if [[ "$line" =~ ^(HDMI-[A-Za-z0-9:-]+)\b ]]; then
-        in_hdmi=1
-        continue
+    # Lister les sorties HDMI
+    mapfile -t outs < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+      wlr-randr 2>/dev/null | awk '$1 ~ /^HDMI-/ {print $1}' | sort -u)
+    for o in "${outs[@]}"; do
+      [[ -n "$o" ]] || continue
+      if sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+           wlr-randr 2>/dev/null | awk -v O="$o" '$1==O{hit=1} hit && $1=="Enabled:"{print $2; exit}' | grep -qx yes; then
+        echo -n "1"; return
       fi
-      # Si on est dans un bloc HDMI, regarder Enabled: yes
-      if (( in_hdmi )); then
-        if [[ "$line" =~ Enabled:[[:space:]]*yes ]]; then any=1; fi
-        # Fin de bloc si on arrive sur une nouvelle sortie (non fiable sans lookahead) →
-        # on se repose sur le fait qu'on cherche juste "any".
-      fi
-      # Si on rencontre une ligne d'entête d'une autre sortie non HDMI, sortir du bloc
-      if [[ "$line" =~ ^([A-Za-z0-9-]+)\b ]] && [[ ! "$line" =~ ^HDMI- ]]; then in_hdmi=0; fi
-    done < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr 2>/dev/null)
-    echo -n "$any"; return
+    done
+    echo -n "0"; return
   fi
   # Fallback DRM câble connecté (moins précis)
   local p s any=0
