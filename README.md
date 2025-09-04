@@ -1,4 +1,4 @@
-# Mini Web Panel • Nginx + PHP-FPM (Raspberry Pi) V1.0.0
+# Mini Web Panel • Nginx + PHP-FPM (Raspberry Pi) V2 (MVC)
 
 [![GitHub release](https://img.shields.io/github/v/release/fay019/WebAdminPanel?logo=github)](https://github.com/fay019/WebAdminPanel/releases/)
 [![Debian 12](https://img.shields.io/badge/Debian-12-red?logo=debian)](#)
@@ -30,7 +30,7 @@ Cible: Raspberry Pi OS (Debian 12) en LAN, avec authentification obligatoire.
 
 ---
 
-## ✅ Prérequis & installation de base
+## ✅ Prérequis & installation de base (Debian 12)
 
 Avant d’installer le panel, installez Nginx et PHP-FPM (8.2, 8.3, 8.4) :
 
@@ -55,20 +55,24 @@ sudo apt install -y php8.4-fpm php8.4-sqlite3
 
 ---
 
-## 🚀 Installation du panel
+## 🚀 Installation du panel (v2)
 
 1) Copier le projet sur le Pi (chemin recommandé: `/var/www/adminpanel`) :
 
 ```bash
-sudo cp -r adminpanel /var/www/adminpanel
+sudo cp -r WebAdminPanel /var/www/adminpanel
 ```
 
 2) Lancer l’installateur :
 
 ```bash
-sudo chmod +x /var/www/adminpanel/install.sh
-sudo /var/www/adminpanel/install.sh
+cd /var/www/adminpanel
+sudo chmod +x install.sh
+sudo ./install.sh --non-interactive || sudo ./install.sh
 ```
+
+- L’install script déploie également les assets: `public/js/app.js`, `public/js/energy.js`, `public/js/php_manage.js`.
+- Il installe la règle sudoers: `/etc/sudoers.d/adminpanel` (NOPASSWD sur ${PANEL_DIR}/bin/*).
 
 3) Accéder au panel :
 - URL: http://adminpanel.local/ (ou IP du Pi)
@@ -76,7 +80,7 @@ sudo /var/www/adminpanel/install.sh
 
 ---
 
-## 🔧 Configuration rapide
+## 🔧 Configuration rapide (v2)
 - PHP-FPM par défaut du panel: **8.3** (modifiable dans `install.sh`)
 - Base SQLite: `data/sites.db`
 - Logs: `logs/panel.log`
@@ -84,20 +88,23 @@ sudo /var/www/adminpanel/install.sh
 
 ---
 
-## 🛡️ Notes sécurité
-- CSRF actif sur tous les formulaires
-- Sudoers ultra-limités (`nginx -t`, reload, scripts bin/*)
+## 🛡️ Notes sécurité (middlewares)
+- AuthMiddleware: redirige vers /login si non connecté (assets exclus)
+- CsrfMiddleware: CSRF actif sur tous les POST (400 sinon)
+- Sudoers: NOPASSWD sur `${PANEL_DIR}/bin/*` (installé via install.sh)
 - Audit log → `logs/panel.log`
 
 ---
 
-## ❓ Dépannage rapide
-- Pas d’output install PHP → vérifier `/etc/sudoers.d/adminpanel`
+## ❓ Dépannage rapide (PhpManage & Nginx)
+- Pas d’output install PHP → vérifier `/etc/sudoers.d/adminpanel` (sudo NOPASSWD) et les logs Nginx (`/var/log/nginx/error.log`)
 - `php-fpm.sock` manquant → adapter le vhost généré
+- Streaming figé → proxy buffering côté Nginx: s’assurer que `X-Accel-Buffering: no` est respecté et que `proxy_buffering off` sur l’upstream si applicable
 - SQLite manquant →
   ```bash
   sudo apt install php8.3-sqlite3 && sudo systemctl restart php8.3-fpm
   ```  
+- Binaire `bin/php_manage.sh` introuvable → vérifier que le chemin déployé est `/var/www/adminpanel/bin/php_manage.sh` (fallback `./bin/php_manage.sh`)
 
 ---
 
@@ -107,20 +114,24 @@ sudo /var/www/adminpanel/install.sh
 
 ---
 
-## 📂 Structure
+## 📂 Structure (v2 MVC)
 ```
-lib/         # Auth, CSRF, DB, i18n, validators
-locales/     # fr, en, de, dz
-public/      # CSS, JS, images, erreurs
-bin/         # Scripts CLI (nginx, php-fpm, sites, power, sysinfo)
-data/        # SQLite (non versionnée)
-logs/        # Journaux (non versionnés)
-*.php        # Pages UI (dashboard, sites, users, etc.)
+public/index.php   # Front controller
+app/Helpers/       # Router.php, Response.php, I18n.php
+app/Controllers/   # DashboardController, PhpManageController, UsersController, ...
+app/Services/      # PhpManageService, PowerService, SystemInfoService, ...
+app/Views/         # layouts/, partials/, dashboard/, php_manage/, users/, errors/
+config/routes.php  # Table de routage (inclut /php/manage et compat /php_manage.php)
+public/            # CSS, JS (dont php_manage.js), images, erreurs
+bin/               # Scripts CLI (nginx, php-fpm, sites, power, sysinfo)
+data/              # SQLite (non versionnée)
+logs/              # Journaux (non versionnés)
+legacy *.php       # Entrées legacy gardées (ex: php_manage.php → 302)
 ```
 
 ---
 
-## 📸 Captures d’écran
+## 📸 Captures d’écran (v2)
 
 ### Connexion
 ![Login](docs/screenshots/screenshot-login.png)
@@ -128,7 +139,15 @@ logs/        # Journaux (non versionnés)
 ### Dashboard
 ![Dashboard](docs/screenshots/screenshot-dashboard.png)
 
-### Gestion PHP
+### Gestion PHP (module PhpManage)
+- Routes:
+  - GET /php/manage (liste) — remplace GET /php_manage.php (redirigé 302)
+  - POST /php/manage/action (non-stream, flash)
+  - POST /php/manage/stream (stream text/plain)
+- Legacy compat:
+  - GET /php_manage.php → 302 /php/manage
+  - POST /php_manage.php → dispatch vers stream/action selon `ajax=1` ou `stream=1`
+- JS: `public/js/php_manage.js` gère l’overlay live log (#busyOverlay/#busyLog)
 - Ajout d’une version PHP  
   ![PHP Config](docs/screenshots/screenshot-php-config.png)
 - Versions détectées  
@@ -155,11 +174,11 @@ logs/        # Journaux (non versionnés)
   ![Account Edit](docs/screenshots/screenshot-account-edit.png)
 
 ### Système
-- Redémarrage en cours  
+- Redémarrage/Arrêt via POST `/system_power.php` (compat)  
   ![Reboot](docs/screenshots/screenshot-reboot.png)
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Roadmap (extraits)
 - [ ] Backup/restore vhosts
 - [ ] Export logs d’audit
 - [ ] Mode lecture seule
