@@ -93,22 +93,22 @@ build_hdmi_map() {
   if [[ -z "$GUI_USER" || -z "$GUI_RT" || -z "$GUI_WLD" ]] || ! have_cmd wlr-randr; then
     echo "{}"; return
   fi
-  local curr="" key="" val="" json="{" wrote=0
-  while IFS= read -r ln; do
-    # Début de bloc HDMI: token en début de ligne (HDMI-...)
-    if [[ "$ln" =~ ^(HDMI-[A-Za-z0-9:-]+)\b ]]; then
-      curr="${BASH_REMATCH[1]}"; key="\"$curr\""; val=""
-      continue
+  # Récupérer la liste des sorties HDMI (token $1 en début de ligne)
+  mapfile -t outs < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+    wlr-randr 2>/dev/null | awk '$1 ~ /^HDMI-/ {print $1}' | sort -u)
+  local json="{" wrote=0
+  for o in "${outs[@]}"; do
+    [[ -n "$o" ]] || continue
+    # Lire l'état Enabled: yes|no pour ce connecteur
+    if sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" \
+         wlr-randr 2>/dev/null | awk -v O="$o" '$1==O{hit=1} hit && $1=="Enabled:"{print $2; exit}' | grep -qx yes; then
+      st=on
+    else
+      st=off
     fi
-    # Ligne Enabled pour la sortie courante
-    if [[ -n "$curr" && "$ln" =~ Enabled:[[:space:]]*(yes|no) ]]; then
-      val=$([[ "${BASH_REMATCH[1]}" == "yes" ]] && echo '"on"' || echo '"off"')
-      [[ $wrote -eq 1 ]] && json+=","; wrote=1
-      json+="$key:$val"
-      curr=""; key=""; val=""
-      continue
-    fi
-  done < <(sudo -u "$GUI_USER" env XDG_RUNTIME_DIR="$GUI_RT" WAYLAND_DISPLAY="$GUI_WLD" wlr-randr 2>/dev/null)
+    [[ $wrote -eq 1 ]] && json+=","; wrote=1
+    json+="\"$o\":\"$st\""
+  done
   json+="}"
   echo "$json"
 }
