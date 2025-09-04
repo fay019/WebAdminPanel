@@ -213,7 +213,10 @@ case "$cmd" in
                 for o in "${outputs[@]}"; do
                   want="$([[ "$act" == "1" ]] && echo on || echo off)"
                   curr="${enabled[$o]:-unknown}"
-                  [[ "$curr" == "$want" ]] && continue
+                  # Si une sortie spécifique est demandée, forcer l'action même si l'état supposé correspond
+                  if [[ -z "$out_req" || "$o" != "$out_req" ]]; then
+                    [[ "$curr" == "$want" ]] && continue
+                  fi
 
                   if [[ "$act" == "0" ]]; then
                     # OFF simplifié et fiable, comme en console
