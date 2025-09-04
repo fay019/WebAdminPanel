@@ -28,10 +28,14 @@
     else if (action === 'restart') t = 'Redémarrage en cours…';
     openOverlay(t);
     try{
+      // Ajouter un header CSRF si présent dans le formulaire pour robustesse
+      let csrf = data.get('_csrf') || data.get('_token') || data.get('csrf') || data.get('token') || '';
+      const headers = { 'Accept': 'text/plain', 'Cache-Control': 'no-store', 'X-Requested-With': 'fetch' };
+      if (csrf) headers['X-CSRF-Token'] = csrf;
       const res = await fetch(url, {
         method: 'POST',
         body: data,
-        headers: { 'Accept': 'text/plain' }
+        headers
       });
       if (!res.body){
         const txt = await res.text();

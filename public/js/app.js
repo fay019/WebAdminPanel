@@ -198,6 +198,9 @@
         if (!btn) return;
         // Ne pas intercepter les boutons power (gérés par un flux dédié)
         if (btn.hasAttribute('data-power')) return;
+        // Laisser les boutons qui demandent un flux (data-stream) être gérés par leur module dédié (ex: php_manage.js)
+        const form = btn.closest('form');
+        if (btn.hasAttribute('data-stream') || (form && form.hasAttribute('data-stream'))) return;
 
         const msg = btn.getAttribute('data-confirm') || 'Confirmer ?';
         e.preventDefault();
