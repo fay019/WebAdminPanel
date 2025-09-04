@@ -17,6 +17,11 @@ return [
         '/users/create' => 'UsersController@create',
         '/users/{id}' => 'UsersController@show',
         '/users/{id}/edit' => 'UsersController@edit',
+        // Sites
+        '/sites' => 'SitesController@index',
+        '/sites/create' => 'SitesController@create',
+        '/sites/{id}' => 'SitesController@show',
+        '/sites/{id}/edit' => 'SitesController@edit',
         // API sysinfo
         '/api/sysinfo' => 'DashboardController@api',
         // API energy
@@ -32,6 +37,13 @@ return [
         '/users/new' => ['redirect' => '/users/create'],
         '/login.php' => ['redirect' => '/login'],
         '/logout.php' => ['redirect' => '/logout'],
+        '/sites_list.php' => ['redirect' => '/sites'],
+        '/site_new.php' => ['redirect' => '/sites/create'],
+        '/site_edit.php' => ['redirect' => '/sites'],
+        '/site_toggle.php' => ['redirect' => '/sites'],
+        '/site_delete.php' => ['redirect' => '/sites'],
+        // orphan legacy GET → execute with legacy GET handler (keeps csrf_check on GET)
+        '/orphan_delete.php' => 'OrphanController@legacyGet',
     ],
     'POST' => [
         // Auth
@@ -49,6 +61,11 @@ return [
         '/users/{id}/update' => 'UsersController@update',
         '/users/{id}/reset-password' => 'UsersController@resetPassword',
         '/users/{id}/delete' => 'UsersController@destroy',
+        // Sites
+        '/sites' => 'SitesController@store',
+        '/sites/{id}/update' => 'SitesController@update',
+        '/sites/{id}/delete' => 'SitesController@destroy',
+        '/sites/{id}/toggle' => 'SitesController@toggle',
         // Energy toggles
         '/energy/toggle/hdmi' => 'EnergyController@toggleHdmi',
         '/energy/toggle/wifi' => 'EnergyController@toggleWifi',
@@ -59,8 +76,12 @@ return [
         // dynamic-like posts
         '/user_edit.php' => 'UsersController@legacyPost',
         '/users_list.php' => 'UsersController@destroy',
+        // orphan delete (new MVC endpoint)
+        '/orphan/delete' => 'OrphanController@delete',
         // legacy endpoint
         '/system_power.php' => 'DashboardController@power',
+        // legacy compat POST for orphan
+        '/orphan_delete.php' => 'OrphanController@legacyPost',
     ],
     'GET_AJAX' => [
         // the existing AJAX pattern /dashboard.php?ajax=sysinfo must remain

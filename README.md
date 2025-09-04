@@ -184,6 +184,8 @@ legacy *.php       # Entrées legacy gardées (ex: php_manage.php → 302)
 - [ ] Mode lecture seule
 - [ ] Gestion avancée multi-users (rôles)
 
+Voir aussi: docs/todo_mvc.md pour la liste détaillée des manques MVC et les priorités à court terme.
+
 ---
 
 ## ⚠️ Limites connues
