@@ -5,7 +5,11 @@
 # If OUTPUT is provided (e.g., HDMI-A-2), it will try to turn it on then off.
 
 set -euo pipefail
-PANEL_DIR="/srv/www/webadminpanel-v2"
+PANEL_DIR="${PANEL_DIR:-}"
+if [[ -z "$PANEL_DIR" ]]; then
+  THIS_DIR="$(cd "$(dirname "$0")" && pwd)"
+  PANEL_DIR="$(cd "$THIS_DIR/.." && pwd)"
+fi
 SCRIPT="$PANEL_DIR/bin/power_saver.sh"
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
@@ -13,6 +17,8 @@ have_cmd() { command -v "$1" >/dev/null 2>&1; }
 hr() { printf '\n%s\n' '------------------------------------------------------------'; }
 
 printf 'Energy console test — %s\n' "$(date -Is)"
+echo "Resolved PANEL_DIR=$PANEL_DIR"
+echo "Using SCRIPT=$SCRIPT"
 
 hr; echo "1) Wayland session detection:"; hr
 if have_cmd loginctl; then
