@@ -22,9 +22,11 @@ final class EnergyController
         header('Content-Type: application/json; charset=utf-8');
         $cmd = sprintf('sudo -n %s/bin/power_saver.sh status 2>&1', $this->panelDir);
         $out = trim(shell_exec($cmd) ?? '');
-        echo $this->looksJson($out)
-            ? $out
-            : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
+        if ($this->looksJson($out)) {
+            echo $out; return;
+        }
+        $this->logError('energy.status', $cmd, $out);
+        echo '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
     }
 
     // app/Controllers/EnergyController.php (méthode toggleHdmi)
@@ -43,9 +45,12 @@ final class EnergyController
         );
         $out = trim(shell_exec($cmd) ?? '');
         if ($this->looksJson($out)) { echo $out; return; }
+        $this->logError('energy.hdmi', $cmd, $out);
 
         $status = trim(shell_exec(sprintf('sudo -n %s/bin/power_saver.sh status 2>&1', $this->panelDir)) ?? '');
-        echo $this->looksJson($status) ? $status : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
+        if ($this->looksJson($status)) { echo $status; return; }
+        $this->logError('energy.status.fallback', $cmd, $status);
+        echo '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
     }
 
     public function toggleWifi(): void
@@ -80,9 +85,11 @@ final class EnergyController
         // Fallback: on renvoie l’état courant pour ne jamais casser le front
         $statusCmd = sprintf('sudo -n %s/bin/power_saver.sh status 2>&1', $this->panelDir);
         $statusOut = trim(shell_exec($statusCmd) ?? '');
-        echo $this->looksJson($statusOut)
-            ? $statusOut
-            : '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
+        if ($this->looksJson($statusOut)) {
+            echo $statusOut; return;
+        }
+        $this->logError('energy.exec', $cmd, $out . "\n-- status --\n" . $statusOut);
+        echo '{"hdmi":null,"wifi":"unknown","bluetooth":"unknown"}';
     }
 
     private function looksJson(string $s): bool
@@ -92,5 +99,11 @@ final class EnergyController
         if ($s[0] !== '{' && $s[0] !== '[') return false;
         json_decode($s);
         return (json_last_error() === JSON_ERROR_NONE);
+    }
+
+    private function logError(string $tag, string $cmd, string $out): void
+    {
+        $line = sprintf("[%s] %s: cmd=%s\n%s\n", date('c'), $tag, $cmd, $out);
+        @file_put_contents(__DIR__ . '/../../logs/panel.log', $line, FILE_APPEND);
     }
 }
