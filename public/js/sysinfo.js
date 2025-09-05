@@ -72,6 +72,30 @@
 
   let consecutiveFails = 0;
   let timer = null;
+  // Track inferred online/offline to update LED with debounce
+  let isOnline = null; // null=unknown, true=online, false=offline
+  let ledTimer = null;
+
+  function updateLed(targetState, pulsing){
+    const led = document.getElementById('srv-led');
+    if (!led) return;
+    const label = led.querySelector('.srv-led-label');
+    // Debounce changes to avoid flicker (300ms)
+    if (ledTimer) { clearTimeout(ledTimer); ledTimer = null; }
+    ledTimer = setTimeout(()=>{
+      led.classList.remove('ok','err','pulse');
+      if (targetState === true) { led.classList.add('ok'); label && (label.textContent = 'Serveur: Allumé'); led.setAttribute('aria-label','Serveur allumé'); }
+      else if (targetState === false) { led.classList.add('err'); label && (label.textContent = 'Serveur: Éteint'); led.setAttribute('aria-label','Serveur éteint'); }
+      else { label && (label.textContent = 'Serveur: Inconnu'); led.removeAttribute('aria-label'); }
+      if (pulsing) led.classList.add('pulse');
+    }, 350);
+  }
+
+  // Optional: react to reboot phases to pulse during reboot_wait_online
+  document.addEventListener('power:phase', (e)=>{
+    const phase = e?.detail?.phase || '';
+    if (phase === 'reboot_wait_online') updateLed(false, true);
+  });
 
   function scheduleNext(){
     const hidden = typeof document !== 'undefined' && document.hidden;
@@ -85,6 +109,7 @@
       window.SYSINFO_LAST_TS = Date.now();
       window.SYSINFO_LAST_DATA = data;
       consecutiveFails = 0;
+      if (isOnline !== true) { isOnline = true; updateLed(true, false); }
       // Update UI if present
       setText(elTemp, String(pickTemp(data)));
       setText(elRam, pickRam(data));
@@ -95,6 +120,7 @@
       consecutiveFails++;
       document.dispatchEvent(new CustomEvent('sysinfo:error', { detail: { at: Date.now(), consecutiveFails } }));
       if (consecutiveFails >= CFG.maxConsecutiveFails) {
+        if (isOnline !== false) { isOnline = false; updateLed(false, false); }
         setText(elTemp, 'n/a');
         setText(elRam, 'n/a');
         setText(elLoad, 'n/a');

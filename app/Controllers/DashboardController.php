@@ -50,14 +50,32 @@ class DashboardController {
             return;
         }
         $out = $svc->execute($action, false);
-        $ok = is_string($out) && str_starts_with($out, 'OK:');
+        $txt = is_string($out) ? trim($out) : '';
+        // Determine success if stdout contains an explicit OK marker
+        $ok = ($txt !== '' && str_starts_with($txt, 'OK:'));
         if ($ok) {
-            // Normalize readable message for UI
             $msg = ($action === 'shutdown') ? "Arrêt demandé. Le système va s’éteindre." : "Redémarrage demandé. Le système va redémarrer.";
-            Response::json(['ok' => true, 'message' => $msg, 'raw' => $out], 200);
+            Response::json(['ok' => true, 'action' => ($action ?: null), 'code' => 'accepted', 'message' => $msg, 'raw' => $out], 200);
             return;
         }
-        $msg = $out !== '' ? $out : 'Erreur: exécution power échouée';
-        Response::json(['ok' => false, 'error' => 'power_failed', 'message' => $msg], 500);
+        // Map real errors before dispatch
+        if (!in_array($action, ['shutdown','reboot'], true)) {
+            Response::json(['ok' => false, 'error' => 'invalid_action', 'message' => 'Action invalide'], 400);
+            return;
+        }
+        $lower = strtolower($txt);
+        if ($lower === '' ) {
+            Response::json(['ok' => false, 'error' => 'power_failed', 'message' => 'Aucune sortie du script'], 500);
+            return;
+        }
+        if (str_contains($lower, 'sudo') && (str_contains($lower, 'not') || str_contains($lower,'denied') || str_contains($lower,'password'))) {
+            Response::json(['ok' => false, 'error' => 'power_permission_denied', 'message' => $out], 500);
+            return;
+        }
+        if (str_contains($lower, 'no such file') || str_contains($lower, 'not found') || str_contains($lower, 'cannot open')) {
+            Response::json(['ok' => false, 'error' => 'power_script_missing', 'message' => $out], 500);
+            return;
+        }
+        Response::json(['ok' => false, 'error' => 'power_failed', 'message' => $out], 500);
     }
 }

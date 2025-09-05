@@ -928,3 +928,10 @@ code {
     opacity: .6;
     pointer-events: none;
 }
+.srv-led{display:flex;align-items:center;gap:.4rem;margin-left:auto}
+.header .srv-led{margin-left:1rem}
+.srv-led-dot{width:12px;height:12px;border-radius:50%;background:#9ca3af;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,0.1) inset}
+.srv-led.ok .srv-led-dot{background:#22c55e}
+.srv-led.err .srv-led-dot{background:#ef4444}
+.srv-led.pulse .srv-led-dot{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}

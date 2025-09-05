@@ -129,33 +129,68 @@
     });
 
     if (isShutdown) {
-      setDot('#22c55e');
-      if (logEl) {
-        logEl.textContent += 'Extinction demandée. À très bientôt !\n';
-        logEl.textContent += 'Pour redémarrer votre Raspberry Pi, débranchez puis rebranchez l’alimentation.\n';
-      }
-      if (hintEl) hintEl.textContent = 'À très bientôt !';
-      finishOverlay();
-      return;
-    } else {
-      // Reboot: wait for the server to come back online via sysinfo updates
+      // Phase: shutdown_wait_offline → attendre détection hors ligne via sysinfo.js
+      document.dispatchEvent(new CustomEvent('power:phase', { detail: { phase: 'shutdown_wait_offline' } }));
       setDot('#94a3b8');
-      if (hintEl) hintEl.textContent = 'Redémarrage en cours… en attente du retour en ligne…';
-      const onUpdate = (ev)=>{
-        const at = (ev?.detail && ev.detail.at) || window.SYSINFO_LAST_TS || 0;
-        if (at && (Date.now() - at) < 5000) {
-          document.removeEventListener('sysinfo:update', onUpdate);
-          if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
-          setTimeout(()=>location.reload(), 300);
+      if (hintEl) hintEl.textContent = 'Extinction en cours… en attente du passage hors ligne…';
+      let wentOffline = false;
+      let failCount = 0;
+      const onErr = (ev)=>{
+        failCount = ev?.detail?.consecutiveFails || (failCount+1);
+        if (!wentOffline && failCount >= 2) {
+          wentOffline = true;
+          document.removeEventListener('sysinfo:error', onErr);
+          setDot('#22c55e');
+          if (logEl) logEl.textContent += 'Serveur hors ligne détecté.\n';
+          if (hintEl) hintEl.textContent = 'Serveur hors ligne détecté';
+          finishOverlay(); // bouton Fermer activé, pas de reload auto
         }
       };
-      document.addEventListener('sysinfo:update', onUpdate);
-      // Safety timeout (90s)
+      document.addEventListener('sysinfo:error', onErr);
+      // Filet de sécurité: si aucune erreur reçue (page quittée avant), activer bouton après 60s
+      setTimeout(()=>{ if (!wentOffline) { finishOverlay(); } }, 60000);
+      return;
+    } else {
+      // Reboot: reboot_wait_offline puis reboot_wait_online via sysinfo.js
+      document.dispatchEvent(new CustomEvent('power:phase', { detail: { phase: 'reboot_wait_offline' } }));
+      setDot('#94a3b8');
+      if (hintEl) hintEl.textContent = 'Redémarrage en cours… en attente du passage hors ligne…';
+      let wentOffline = false;
+      let failCount = 0;
+      const onErr = (ev)=>{
+        failCount = ev?.detail?.consecutiveFails || (failCount+1);
+        if (!wentOffline && failCount >= 2) {
+          wentOffline = true;
+          document.removeEventListener('sysinfo:error', onErr);
+          if (hintEl) hintEl.textContent = 'Hors ligne détecté — attente du retour en ligne…';
+          // Phase: reboot_wait_online
+          document.dispatchEvent(new CustomEvent('power:phase', { detail: { phase: 'reboot_wait_online' } }));
+          // Maintenant attendre le retour online (un succès)
+          const onUpdate = (evu)=>{
+            const at = (evu?.detail && evu.detail.at) || window.SYSINFO_LAST_TS || 0;
+            if (at && (Date.now() - at) < 5000) {
+              document.removeEventListener('sysinfo:update', onUpdate);
+              if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
+              setTimeout(()=>location.reload(), 300);
+            }
+          };
+          document.addEventListener('sysinfo:update', onUpdate);
+          // Timeout global au cas où (90s)
+          setTimeout(()=>{
+            document.removeEventListener('sysinfo:update', onUpdate);
+            if (hintEl) hintEl.textContent = 'Tentative de rechargement…';
+            location.reload();
+          }, 90000);
+        }
+      };
+      document.addEventListener('sysinfo:error', onErr);
+      // Filet de sécu si pas d’événements reçus
       setTimeout(()=>{
-        document.removeEventListener('sysinfo:update', onUpdate);
-        if (hintEl) hintEl.textContent = 'Tentative de rechargement…';
-        location.reload();
-      }, 90000);
+        if (!wentOffline) {
+          if (hintEl) hintEl.textContent = 'Tentative de rechargement…';
+          location.reload();
+        }
+      }, 120000);
       return;
     }
   }

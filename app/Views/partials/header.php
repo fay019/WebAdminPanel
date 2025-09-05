@@ -41,5 +41,9 @@ require_once __DIR__ . '/../../../lib/csrf.php';
                 <a class="btn" href="/sites/create">+ Nouveau</a>
                 <a class="btn danger" href="/logout.php">Déconnexion</a>
             <?php endif; ?>
+            <div class="srv-led" id="srv-led" title="État du serveur (via /api/sysinfo)" aria-live="polite" aria-atomic="true">
+                <span class="srv-led-dot" aria-hidden="true"></span>
+                <span class="srv-led-label">Serveur: Inconnu</span>
+            </div>
         </nav>
     </div>
