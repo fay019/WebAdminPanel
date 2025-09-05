@@ -34,31 +34,30 @@ class DashboardController {
         exit;
     }
 
+    // GET on power endpoints -> JSON method not allowed (no HTML)
+    public function powerMethodNotAllowed(): void {
+        Response::json(['ok' => false, 'error' => 'method_not_allowed'], 405);
+    }
+
     public function power(): void {
-        // Preserve legacy behavior: expects POST with action=shutdown|reboot; optional stream=1
+        // JSON/POST only. Optional stream=1 for passthrough.
         $action = $_POST['action'] ?? '';
         $stream = isset($_GET['stream']) ? (string)$_GET['stream'] : (isset($_POST['stream']) ? (string)$_POST['stream'] : '');
-        $ajax   = ($_POST['ajax'] ?? '') === '1';
-        $back   = $_POST['back'] ?? ($_SERVER['HTTP_REFERER'] ?? '/dashboard');
         $svc = new PowerService();
-        if ($stream==='1' || $stream==='true') { $svc->execute($action, true); return; }
-        $out = $svc->execute($action, false);
-        if ($ajax) {
-            header('Content-Type: text/plain; charset=UTF-8');
-            echo $out;
+        if ($stream === '1' || $stream === 'true') {
+            // streaming passthrough for compatibility
+            $svc->execute($action, true);
             return;
         }
-        // Non-AJAX: simulate legacy flash + redirect
-        require_once __DIR__.'/../../partials/flash.php';
+        $out = $svc->execute($action, false);
         $ok = is_string($out) && str_starts_with($out, 'OK:');
         if ($ok) {
-            if ($action === 'shutdown') { flash('ok', "OK: arrêt demandé. Le système va s’éteindre."); }
-            else { flash('ok', "OK: redémarrage demandé. Le système va redémarrer."); }
-        } else {
-            $msg = $out !== '' ? $out : 'ERREUR: aucune sortie';
-            flash('err', nl2br(htmlspecialchars($msg)), true);
+            // Normalize readable message for UI
+            $msg = ($action === 'shutdown') ? "Arrêt demandé. Le système va s’éteindre." : "Redémarrage demandé. Le système va redémarrer.";
+            Response::json(['ok' => true, 'message' => $msg, 'raw' => $out], 200);
+            return;
         }
-        header("Location: $back");
-        exit;
+        $msg = $out !== '' ? $out : 'Erreur: exécution power échouée';
+        Response::json(['ok' => false, 'error' => 'power_failed', 'message' => $msg], 500);
     }
 }

@@ -29,6 +29,9 @@ return [
         '/api/energy/status' => 'EnergyController@status',
         // Legacy alias for compatibility
         '/ajax/sysinfo' => 'DashboardController@api',
+        // Power endpoints — GET should return JSON method-not-allowed (to avoid 404/HTML)
+        '/dashboard/power' => 'DashboardController@powerMethodNotAllowed',
+        '/system_power.php' => 'DashboardController@powerMethodNotAllowed',
         // legacy redirects
         '/dashboard.php' => ['redirect' => '/dashboard'],
         '/users_list.php' => ['redirect' => '/users'],
@@ -78,7 +81,7 @@ return [
         '/users_list.php' => 'UsersController@destroy',
         // orphan delete (new MVC endpoint)
         '/orphan/delete' => 'OrphanController@delete',
-        // legacy endpoint
+        // legacy endpoint (alias)
         '/system_power.php' => 'DashboardController@power',
         // legacy compat POST for orphan
         '/orphan_delete.php' => 'OrphanController@legacyPost',
