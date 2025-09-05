@@ -17,7 +17,29 @@
   const logEl   = document.getElementById('powerLog');
   const closeBt = document.getElementById('powerClose');
 
+  // --- State & cleanup management ---
+  let listeners = [];
+  let timers = [];
+  function addListener(target, type, handler, opts){ if (!target) return; target.addEventListener(type, handler, opts); listeners.push([target,type,handler,opts]); }
+  function addTimer(id){ timers.push(id); return id; }
+  function cleanup() {
+    // clear timers
+    for (const t of timers.splice(0)) { try { clearTimeout(t); } catch {} try { clearInterval(t); } catch {} }
+    // remove listeners
+    for (const it of listeners.splice(0)) { try { it[0].removeEventListener(it[1], it[2], it[3]); } catch {} }
+    // reset attributes
+    if (overlay) { delete overlay.dataset.powerMode; overlay.removeAttribute('data-power-mode'); }
+    // reset UI
+    if (closeBt) { closeBt.disabled = false; closeBt.style.display = ''; }
+  }
+
+  function closeOverlayInternal() {
+    if (overlay) { overlay.style.display = 'none'; overlay.setAttribute('aria-hidden','true'); }
+    cleanup();
+  }
+
   function showOverlay(title, hint) {
+    cleanup(); // ensure clean before opening
     if (titleEl && title) titleEl.textContent = title;
     if (hintEl && hint)   hintEl.textContent  = hint;
     if (logEl) logEl.textContent = '';
@@ -29,8 +51,9 @@
     if (dot) dot.style.background = color;
   }
   function finishOverlay() { if (closeBt) closeBt.disabled = false; }
-  closeBt?.addEventListener('click', () => {
-    if (overlay) { overlay.style.display = 'none'; overlay.setAttribute('aria-hidden','true'); }
+  function enableEscClose(){ addListener(document, 'keydown', (e)=>{ if (e.key === 'Escape') closeOverlayInternal(); }); }
+  addListener(closeBt, 'click', () => {
+    closeOverlayInternal();
     const mode = overlay?.dataset?.powerMode || '';
     if (mode !== 'shutdown') location.reload();
   });
@@ -112,7 +135,8 @@
 
     const isShutdown = String(fd.get('action')) === 'shutdown';
     if (overlay) overlay.dataset.powerMode = isShutdown ? 'shutdown' : 'reboot';
-    if (closeBt) closeBt.style.display = isShutdown ? '' : 'none';
+    // Close button: hidden during reboot until offline reached; visible for shutdown now
+    if (closeBt) { closeBt.style.display = isShutdown ? '' : 'none'; }
 
     // Compte à rebours (par défaut 30s, min 5s)
     let seconds = 30;
@@ -121,11 +145,11 @@
     const label = isShutdown ? 'Extinction dans ' : 'Arrêt avant redémarrage dans ';
     if (hintEl) hintEl.textContent = label + `${seconds}s…`;
     await new Promise((resolve) => {
-      const timer = setInterval(() => {
+      const iv = addTimer(setInterval(() => {
         seconds -= 1;
-        if (seconds <= 0) { clearInterval(timer); resolve(); return; }
+        if (seconds <= 0) { clearInterval(iv); resolve(); return; }
         if (hintEl) hintEl.textContent = label + `${seconds}s…`;
-      }, 1000);
+      }, 1000));
     });
 
     if (isShutdown) {
@@ -135,6 +159,9 @@
       if (hintEl) hintEl.textContent = 'Extinction en cours… en attente du passage hors ligne…';
       let wentOffline = false;
       let failCount = 0;
+      // Close button and ESC enabled immediately after countdown
+      if (closeBt) { closeBt.style.display = ''; finishOverlay(); }
+      enableEscClose();
       const onErr = (ev)=>{
         failCount = ev?.detail?.consecutiveFails || (failCount+1);
         if (!wentOffline && failCount >= 2) {
@@ -142,13 +169,13 @@
           document.removeEventListener('sysinfo:error', onErr);
           setDot('#22c55e');
           if (logEl) logEl.textContent += 'Serveur hors ligne détecté.\n';
-          if (hintEl) hintEl.textContent = 'Serveur hors ligne détecté';
+          if (hintEl) hintEl.textContent = 'Serveur hors ligne détecté — Vous pouvez fermer ce message.';
           finishOverlay(); // bouton Fermer activé, pas de reload auto
         }
       };
-      document.addEventListener('sysinfo:error', onErr);
-      // Filet de sécurité: si aucune erreur reçue (page quittée avant), activer bouton après 60s
-      setTimeout(()=>{ if (!wentOffline) { finishOverlay(); } }, 60000);
+      addListener(document, 'sysinfo:error', onErr);
+      // Filet de sécurité: activer bouton après 60s si pas d'events
+      addTimer(setTimeout(()=>{ if (!wentOffline) { if (hintEl) hintEl.textContent = 'Vous pouvez fermer ce message.'; finishOverlay(); } }, 60000));
       return;
     } else {
       // Reboot: reboot_wait_offline puis reboot_wait_online via sysinfo.js
@@ -157,6 +184,9 @@
       if (hintEl) hintEl.textContent = 'Redémarrage en cours… en attente du passage hors ligne…';
       let wentOffline = false;
       let failCount = 0;
+      // Make Close visible/enabled and ESC active when we leave sending -> offline wait
+      if (closeBt) { closeBt.style.display = ''; finishOverlay(); }
+      enableEscClose();
       const onErr = (ev)=>{
         failCount = ev?.detail?.consecutiveFails || (failCount+1);
         if (!wentOffline && failCount >= 2) {
@@ -171,26 +201,28 @@
             if (at && (Date.now() - at) < 5000) {
               document.removeEventListener('sysinfo:update', onUpdate);
               if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
-              setTimeout(()=>location.reload(), 300);
+              addTimer(setTimeout(()=>location.reload(), 300));
+              // Safety: also close if reload blocked
+              addTimer(setTimeout(()=>{ if (overlay && overlay.style.display !== 'none') closeOverlayInternal(); }, 5000));
             }
           };
-          document.addEventListener('sysinfo:update', onUpdate);
+          addListener(document, 'sysinfo:update', onUpdate);
           // Timeout global au cas où (90s)
-          setTimeout(()=>{
+          addTimer(setTimeout(()=>{
             document.removeEventListener('sysinfo:update', onUpdate);
             if (hintEl) hintEl.textContent = 'Tentative de rechargement…';
             location.reload();
-          }, 90000);
+          }, 90000));
         }
       };
-      document.addEventListener('sysinfo:error', onErr);
+      addListener(document, 'sysinfo:error', onErr);
       // Filet de sécu si pas d’événements reçus
-      setTimeout(()=>{
+      addTimer(setTimeout(()=>{
         if (!wentOffline) {
           if (hintEl) hintEl.textContent = 'Tentative de rechargement…';
           location.reload();
         }
-      }, 120000);
+      }, 120000));
       return;
     }
   }

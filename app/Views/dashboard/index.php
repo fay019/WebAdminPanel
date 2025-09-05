@@ -70,7 +70,7 @@
 
         <div class="metric">
             <h4>Uptime</h4>
-            <div class="value smallmono"><?= htmlspecialchars($sysinfo['uptime'] ?? 'n/a') ?></div>
+            <div class="value smallmono" id="uptimeVal"><?= htmlspecialchars($sysinfo['uptime'] ?? 'n/a') ?></div>
         </div>
 
         <div class="card">
@@ -80,51 +80,51 @@
 
         <div class="metric">
             <h4>Disque</h4>
-            <div class="value smallmono"><?= htmlspecialchars($sysinfo['disk'] ?? 'n/a') ?></div>
+            <div class="value smallmono" data-metric="diskMain"><?= htmlspecialchars($sysinfo['disk'] ?? 'n/a') ?></div>
         </div>
 
         <div class="metric">
             <h4>OS</h4>
-            <div class="value smallmono"><?= htmlspecialchars($sysinfo['os'] ?? 'n/a') ?></div>
+            <div class="value smallmono" data-metric="osPretty"><?= htmlspecialchars($sysinfo['os'] ?? 'n/a') ?></div>
         </div>
 
         <div class="metric">
             <h4>Kernel</h4>
-            <div class="value smallmono"><?= htmlspecialchars($sysinfo['kernel'] ?? 'n/a') ?></div>
+            <div class="value smallmono" data-metric="osKernel"><?= htmlspecialchars($sysinfo['kernel'] ?? 'n/a') ?></div>
         </div>
 
         <div class="metric">
             <h4>Processus actifs</h4>
-            <div class="value"><?= htmlspecialchars($sysinfo['processes']) ?></div>
+            <div class="value" data-metric="procCount"><?= htmlspecialchars($sysinfo['processes']) ?></div>
         </div>
 
         <div class="metric">
             <h4>Cœurs CPU</h4>
-            <div class="value"><?= htmlspecialchars($sysinfo['cpu_cores'] ?? 'n/a') ?></div>
+            <div class="value" data-metric="cpuCores"><?= htmlspecialchars($sysinfo['cpu_cores'] ?? 'n/a') ?></div>
         </div>
 
         <div class="metric">
             <h4>Top CPU</h4>
-            <div class="value ellip smallmono" title="<?= htmlspecialchars($sysinfo['top_cpu'] ?? 'n/a') ?>">
+            <div class="value ellip smallmono" data-metric="topCpu" title="<?= htmlspecialchars($sysinfo['top_cpu'] ?? 'n/a') ?>">
                 <?= htmlspecialchars($sysinfo['top_cpu'] ?? 'n/a') ?>
             </div>
         </div>
 
         <div class="metric">
             <h4>Top MEM</h4>
-            <div class="value ellip smallmono" title="<?= htmlspecialchars($sysinfo['top_mem'] ?? 'n/a') ?>">
+            <div class="value ellip smallmono" data-metric="topMem" title="<?= htmlspecialchars($sysinfo['top_mem'] ?? 'n/a') ?>">
                 <?= htmlspecialchars($sysinfo['top_mem'] ?? 'n/a') ?>
             </div>
         </div>
 
         <div class="metric">
             <h4>Disque /var/www</h4>
-            <div class="value smallmono"><?= htmlspecialchars($sysinfo['disk_www'] ?? 'n/a') ?></div>
+            <div class="value smallmono" data-metric="diskWww"><?= htmlspecialchars($sysinfo['disk_www'] ?? 'n/a') ?></div>
         </div>
 
         <div class="metric">
             <h4>Version PHP CLI</h4>
-            <div class="value smallmono"><?= htmlspecialchars($sysinfo['php_cli'] ?? 'n/a') ?></div>
+            <div class="value smallmono" data-metric="phpCli"><?= htmlspecialchars($sysinfo['php_cli'] ?? 'n/a') ?></div>
         </div>
 
         <div class="metric">
@@ -149,7 +149,7 @@
 
         <div class="metric">
             <h4>Version Nginx</h4>
-            <div class="value smallmono"><?= htmlspecialchars($sysinfo['nginx_version'] ?? 'n/a') ?></div>
+            <div class="value smallmono" data-metric="nginxVer"><?= htmlspecialchars($sysinfo['nginx_version'] ?? 'n/a') ?></div>
         </div>
     </div>
 </div>

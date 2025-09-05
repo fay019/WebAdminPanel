@@ -172,35 +172,30 @@ ensure_pkg sqlite3
 ensure_pkg "php${PHP_VER}-sqlite3"
 ensure_pkg "php${PHP_VER}-cli"
 
-echo "[3/7] Assets (CSS/JS) si présents dans le dépôt"
+# [3/7] Sync des assets CSS/JS
+echo "[3/7] Sync des assets CSS/JS (auto, sans écraser)"
 if [[ -d "$ASSETS_SRC_DIR" ]]; then
-  sudo mkdir -p "$PANEL_DIR/public/css" "$PANEL_DIR/public/js"
-  if [[ -f "$ASSETS_SRC_DIR/css/style.css" ]]; then
-    sudo cp -n "$ASSETS_SRC_DIR/css/style.css" "$PANEL_DIR/public/css/style.css" || true
-    echo "  - CSS ok"
+  sudo mkdir -p "$PANEL_DIR/public"
+  if command -v rsync >/dev/null 2>&1; then
+    sudo rsync -a --ignore-existing \
+      --include='css/' --include='js/' \
+      --include='css/*.css' --include='js/*.js' \
+      --exclude='*' "$ASSETS_SRC_DIR"/ "$PANEL_DIR/public/" \
+      && echo "  - Assets CSS/JS synchronisés (nouveaux fichiers pris en compte)"
+  else
+    # Fallback sans rsync
+    for d in css js; do
+      [[ -d "$ASSETS_SRC_DIR/$d" ]] || continue
+      sudo mkdir -p "$PANEL_DIR/public/$d"
+      sudo find "$ASSETS_SRC_DIR/$d" -maxdepth 1 -type f \( -name '*.css' -o -name '*.js' \) -exec cp -n {} "$PANEL_DIR/public/$d/" \;
+    done
+    echo "  - Assets CSS/JS copiés (fallback, no overwrite)"
   fi
-  if [[ -f "$ASSETS_SRC_DIR/js/app.js" ]]; then
-    sudo cp -n "$ASSETS_SRC_DIR/js/app.js" "$PANEL_DIR/public/js/app.js" || true
-    echo "  - JS ok"
-  fi
-  if [[ -f "$ASSETS_SRC_DIR/js/startReboot.js" ]]; then
-    sudo cp -n "$ASSETS_SRC_DIR/js/startReboot.js" "$PANEL_DIR/public/js/startReboot.js" || true
-    echo "  - JS power (startReboot.js) ok"
-  fi
-  if [[ -f "$ASSETS_SRC_DIR/js/energy.js" ]]; then
-    sudo cp -n "$ASSETS_SRC_DIR/js/energy.js" "$PANEL_DIR/public/js/energy.js" || true
-    echo "  - JS energy ok"
-  fi
-  if [[ -f "$ASSETS_SRC_DIR/js/sysinfo.js" ]]; then
-    sudo cp -n "$ASSETS_SRC_DIR/js/sysinfo.js" "$PANEL_DIR/public/js/sysinfo.js" || true
-    echo "  - JS sysinfo ok"
-  fi
-  if [[ -f "$ASSETS_SRC_DIR/js/php_manage.js" ]]; then
-    sudo cp -n "$ASSETS_SRC_DIR/js/php_manage.js" "$PANEL_DIR/public/js/php_manage.js" || true
-    echo "  - JS php_manage ok"
-  fi
+else
+  echo "  - $ASSETS_SRC_DIR introuvable (skip)"
 fi
 
+# [3b/7] Dépendances Power Saver
 echo "[3b/7] Dépendances Power Saver (rfkill + vcgencmd si Raspberry Pi)"
 if command -v apt-get >/dev/null 2>&1; then
   sudo apt-get update -y >/dev/null 2>&1 || true
