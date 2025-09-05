@@ -160,7 +160,7 @@
       let wentOffline = false;
       let failCount = 0;
       // Close button and ESC enabled immediately after countdown
-      if (closeBt) { closeBt.style.display = ''; finishOverlay(); }
+      if (closeBt) { closeBt.style.display = ''; closeBt.style.pointerEvents = 'auto'; finishOverlay(); }
       enableEscClose();
       const onErr = (ev)=>{
         failCount = ev?.detail?.consecutiveFails || (failCount+1);
@@ -185,7 +185,7 @@
       let wentOffline = false;
       let failCount = 0;
       // Make Close visible/enabled and ESC active when we leave sending -> offline wait
-      if (closeBt) { closeBt.style.display = ''; finishOverlay(); }
+      if (closeBt) { closeBt.style.display = ''; closeBt.style.pointerEvents = 'auto'; finishOverlay(); }
       enableEscClose();
       const onErr = (ev)=>{
         failCount = ev?.detail?.consecutiveFails || (failCount+1);
@@ -197,14 +197,11 @@
           document.dispatchEvent(new CustomEvent('power:phase', { detail: { phase: 'reboot_wait_online' } }));
           // Maintenant attendre le retour online (un succès)
           const onUpdate = (evu)=>{
-            const at = (evu?.detail && evu.detail.at) || window.SYSINFO_LAST_TS || 0;
-            if (at && (Date.now() - at) < 5000) {
-              document.removeEventListener('sysinfo:update', onUpdate);
-              if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
-              addTimer(setTimeout(()=>location.reload(), 300));
-              // Safety: also close if reload blocked
-              addTimer(setTimeout(()=>{ if (overlay && overlay.style.display !== 'none') closeOverlayInternal(); }, 5000));
-            }
+            document.removeEventListener('sysinfo:update', onUpdate);
+            if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
+            addTimer(setTimeout(()=>location.reload(), 300));
+            // Safety: also close if reload blocked
+            addTimer(setTimeout(()=>{ if (overlay && overlay.style.display !== 'none') closeOverlayInternal(); }, 5000));
           };
           addListener(document, 'sysinfo:update', onUpdate);
           // Timeout global au cas où (90s)
