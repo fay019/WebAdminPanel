@@ -183,6 +183,10 @@ if [[ -d "$ASSETS_SRC_DIR" ]]; then
     sudo cp -n "$ASSETS_SRC_DIR/js/app.js" "$PANEL_DIR/public/js/app.js" || true
     echo "  - JS ok"
   fi
+  if [[ -f "$ASSETS_SRC_DIR/js/startReboot.js" ]]; then
+    sudo cp -n "$ASSETS_SRC_DIR/js/startReboot.js" "$PANEL_DIR/public/js/startReboot.js" || true
+    echo "  - JS power (startReboot.js) ok"
+  fi
   if [[ -f "$ASSETS_SRC_DIR/js/energy.js" ]]; then
     sudo cp -n "$ASSETS_SRC_DIR/js/energy.js" "$PANEL_DIR/public/js/energy.js" || true
     echo "  - JS energy ok"
