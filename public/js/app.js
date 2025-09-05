@@ -54,6 +54,15 @@
         const href = link && link.closest ? (link.closest('a')?.getAttribute('href') || '#') : '#';
         if (openModal(message, href)) {
             if (ev) ev.preventDefault();
+            if (okBtn) {
+                const target = href;
+                const onOk = function (e2) {
+                    e2.preventDefault();
+                    closeModal();
+                    window.location.href = target;
+                };
+                okBtn.addEventListener('click', onOk, { once: true });
+            }
             return false;
         }
         // Fallback modal absente
@@ -110,7 +119,19 @@
         }
 
         // Cas général: liens non-power → navigation après confirmation
-        if (openModal(msg, a.href)) return;
+        if (openModal(msg, a.href)) {
+            if (okBtn) {
+                const target = a.href;
+                const onOk = function (ev) {
+                    ev.preventDefault();
+                    closeModal();
+                    // Navigation explicite pour garantir la fermeture de la modale avant l'action
+                    window.location.href = target;
+                };
+                okBtn.addEventListener('click', onOk, { once: true });
+            }
+            return;
+        }
 
         // Fallback : confirm() natif
         if (fallbackConfirm(e, msg)) window.location.href = a.href;
