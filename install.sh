@@ -191,6 +191,10 @@ if [[ -d "$ASSETS_SRC_DIR" ]]; then
     sudo cp -n "$ASSETS_SRC_DIR/js/energy.js" "$PANEL_DIR/public/js/energy.js" || true
     echo "  - JS energy ok"
   fi
+  if [[ -f "$ASSETS_SRC_DIR/js/sysinfo.js" ]]; then
+    sudo cp -n "$ASSETS_SRC_DIR/js/sysinfo.js" "$PANEL_DIR/public/js/sysinfo.js" || true
+    echo "  - JS sysinfo ok"
+  fi
   if [[ -f "$ASSETS_SRC_DIR/js/php_manage.js" ]]; then
     sudo cp -n "$ASSETS_SRC_DIR/js/php_manage.js" "$PANEL_DIR/public/js/php_manage.js" || true
     echo "  - JS php_manage ok"

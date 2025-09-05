@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../../lib/csrf.php';
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/tables.css">
     <script src="/js/app.js" defer></script>
+    <script src="/js/sysinfo.js" defer></script>
     <script src="/js/startReboot.js" defer></script>
     <script src="/js/modules/passgen.js" defer></script>
     <script src="/js/tables.js" defer></script>

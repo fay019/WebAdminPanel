@@ -39,17 +39,11 @@
     const out = {}; (txt || '').split(/\r?\n/).forEach(l => { const i = l.indexOf('='); if (i<=0) return; const k=l.slice(0,i).trim().toLowerCase().replace(/[^a-z0-9_]+/g,'_'); const v=l.slice(i+1).trim(); out[k]=v; });
     return out;
   }
-  async function readSysinfo() {
-    if (!window.SYSINFO_URL) return null;
-    const r = await fetch(window.SYSINFO_URL, { cache: 'no-store' });
-    const t = await r.text();
-    try { return JSON.parse(t); } catch { return parseKV(t); }
-  }
+  // Use sysinfo.js as the single source; do not fetch here
   async function getBootIdSafe() {
-    try {
-      const d = await readSysinfo();
-      return d && (d.boot_id || d.bootId) ? (d.boot_id || d.bootId) : null;
-    } catch { return null; }
+    const d = (window.SYSINFO_LAST_DATA || null);
+    if (d && (d.boot_id || d.bootId)) return d.boot_id || d.bootId;
+    return null;
   }
 
   async function postPowerJson(url, fd) {
@@ -144,8 +138,24 @@
       finishOverlay();
       return;
     } else {
-      if (hintEl) hintEl.textContent = 'Redémarrage en cours… rechargement…';
-      setTimeout(() => { location.reload(); }, 500);
+      // Reboot: wait for the server to come back online via sysinfo updates
+      setDot('#94a3b8');
+      if (hintEl) hintEl.textContent = 'Redémarrage en cours… en attente du retour en ligne…';
+      const onUpdate = (ev)=>{
+        const at = (ev?.detail && ev.detail.at) || window.SYSINFO_LAST_TS || 0;
+        if (at && (Date.now() - at) < 5000) {
+          document.removeEventListener('sysinfo:update', onUpdate);
+          if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
+          setTimeout(()=>location.reload(), 300);
+        }
+      };
+      document.addEventListener('sysinfo:update', onUpdate);
+      // Safety timeout (90s)
+      setTimeout(()=>{
+        document.removeEventListener('sysinfo:update', onUpdate);
+        if (hintEl) hintEl.textContent = 'Tentative de rechargement…';
+        location.reload();
+      }, 90000);
       return;
     }
   }
