@@ -9,15 +9,20 @@ class PowerService {
     private function script(): string { return file_exists($this->deploy) ? $this->deploy : $this->local; }
 
     // Execute power action; if $stream true, passthru streaming output
-    public function execute(string $action, bool $stream=false): string {
-        if (!in_array($action, ['shutdown','reboot'], true)) { return 'ERR: invalid action'; }
+    // Returns an array: ['out' => string, 'code' => int]
+    public function execute(string $action, bool $stream=false): array {
+        if (!in_array($action, ['shutdown','reboot'], true)) { return ['out' => 'ERR: invalid action', 'code' => 1]; }
         $cmd = 'sudo -n ' . escapeshellarg($this->script()) . ' ' . escapeshellarg($action);
         if ($stream) {
             header('Content-Type: text/plain; charset=utf-8');
+            $code = 1;
             passthru($cmd, $code);
-            return '';
+            return ['out' => '', 'code' => (int)$code];
         }
-        $out = shell_exec($cmd . ' 2>&1');
-        return $out ?? 'ERR: command failed';
+        $output = [];
+        $code = 1;
+        @exec($cmd . ' 2>&1', $output, $code);
+        $out = implode("\n", $output);
+        return ['out' => $out, 'code' => (int)$code];
     }
 }

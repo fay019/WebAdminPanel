@@ -46,16 +46,24 @@ class DashboardController {
         $svc = new PowerService();
         if ($stream === '1' || $stream === 'true') {
             // streaming passthrough for compatibility
-            $svc->execute($action, true);
+            $res = $svc->execute($action, true);
+            // In streaming mode, rely on exit code to infer success
+            $code = is_array($res) ? ($res['code'] ?? 1) : 1;
+            if ((int)$code === 0) {
+                $msg = ($action === 'shutdown') ? "Arrêt demandé. Le système va s’éteindre." : "Redémarrage demandé. Le système va redémarrer.";
+                Response::json(['ok' => true, 'action' => ($action ?: null), 'code' => 'accepted', 'message' => $msg], 200);
+            }
             return;
         }
-        $out = $svc->execute($action, false);
-        $txt = is_string($out) ? trim($out) : '';
-        // Determine success if stdout contains an explicit OK marker
-        $ok = ($txt !== '' && str_starts_with($txt, 'OK:'));
+        $res = $svc->execute($action, false);
+        $txt = is_array($res) ? trim((string)($res['out'] ?? '')) : trim((string)$res);
+        $exit = is_array($res) ? (int)($res['code'] ?? 1) : 1;
+        // Determine success: exit code 0 OR stdout contains OK marker anywhere
+        $okMarker = ($action === 'shutdown') ? 'OK: shutdown triggered' : (($action === 'reboot') ? 'OK: reboot triggered' : 'OK:');
+        $ok = ($exit === 0) || ($txt !== '' && (str_contains($txt, $okMarker) || str_contains($txt, 'OK:')));
         if ($ok) {
             $msg = ($action === 'shutdown') ? "Arrêt demandé. Le système va s’éteindre." : "Redémarrage demandé. Le système va redémarrer.";
-            Response::json(['ok' => true, 'action' => ($action ?: null), 'code' => 'accepted', 'message' => $msg, 'raw' => $out], 200);
+            Response::json(['ok' => true, 'action' => ($action ?: null), 'code' => 'accepted', 'message' => $msg], 200);
             return;
         }
         // Map real errors before dispatch
@@ -69,13 +77,13 @@ class DashboardController {
             return;
         }
         if (str_contains($lower, 'sudo') && (str_contains($lower, 'not') || str_contains($lower,'denied') || str_contains($lower,'password'))) {
-            Response::json(['ok' => false, 'error' => 'power_permission_denied', 'message' => $out], 500);
+            Response::json(['ok' => false, 'error' => 'power_permission_denied', 'message' => $txt], 500);
             return;
         }
         if (str_contains($lower, 'no such file') || str_contains($lower, 'not found') || str_contains($lower, 'cannot open')) {
-            Response::json(['ok' => false, 'error' => 'power_script_missing', 'message' => $out], 500);
+            Response::json(['ok' => false, 'error' => 'power_script_missing', 'message' => $txt], 500);
             return;
         }
-        Response::json(['ok' => false, 'error' => 'power_failed', 'message' => $out], 500);
+        Response::json(['ok' => false, 'error' => 'power_failed', 'message' => $txt], 500);
     }
 }
