@@ -25,6 +25,7 @@ return [
         // API sysinfo
         '/api/sysinfo' => 'DashboardController@api',
         '/api/storage' => 'DashboardController@storage',
+        '/api/nvme/health' => 'DashboardController@nvmeHealth',
         // API energy
         '/energy/status' => 'EnergyController@status',
         '/api/energy/status' => 'EnergyController@status',

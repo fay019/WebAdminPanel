@@ -5,6 +5,7 @@ use App\Services\SysInfoService;
 use App\Services\PowerService;
 use App\Services\SystemInfoService;
 use App\Services\StorageService;
+use App\Services\NvmeHealthService;
 
 class DashboardController {
     public function index(): void {
@@ -95,5 +96,15 @@ class DashboardController {
             return;
         }
         Response::json(['ok' => false, 'error' => 'power_failed', 'message' => $txt], 500);
+    }
+
+    // NVMe Health endpoint (10 min cache)
+    public function nvmeHealth(): void {
+        header('Content-Type: application/json; charset=UTF-8');
+        header('Cache-Control: public, max-age=600, s-maxage=600');
+        $svc = new NvmeHealthService(600);
+        $data = $svc->get();
+        echo json_encode($data, JSON_UNESCAPED_SLASHES);
+        exit;
     }
 }

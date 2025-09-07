@@ -15,6 +15,7 @@
   const elToggle = elCard.querySelector('[data-action="toggle-unit"]');
   const elPie = elCard.querySelector('#storagePie');
   const elGrid = elCard.querySelector('#storageGrid');
+  const elNvme = elCard.querySelector('[data-nvme-health]');
 
   const elRootTile = document.querySelector('[data-metric="diskMain"]');
   const elWebTile  = document.querySelector('[data-metric="diskWww"]');
@@ -181,6 +182,38 @@
     }
   }
 
+  async function loadNvme(){
+    if (!elNvme) return;
+    try {
+      const r = await fetch('/api/nvme/health', { cache: 'no-store' });
+      if (!r.ok) throw new Error('http '+r.status);
+      const h = await r.json();
+      const container = elNvme;
+      container.innerHTML = '';
+      const wrap = document.createElement('span'); wrap.className='chip-row';
+      const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      icon.setAttribute('viewBox','0 0 24 24'); icon.setAttribute('width','16'); icon.setAttribute('height','16'); icon.setAttribute('aria-hidden','true');
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d','M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zm3 0h14v8H5zM7 11h2m3 0h2m3 0h2');
+      path.setAttribute('stroke','currentColor'); path.setAttribute('stroke-width','1.6'); path.setAttribute('fill','none'); path.setAttribute('stroke-linecap','round'); path.setAttribute('stroke-linejoin','round');
+      icon.appendChild(path);
+      const badge = document.createElement('span'); badge.className='badge';
+      let cls = 'ok'; let label = 'OK';
+      if (!h || h.ok===false) { cls='warn'; label='NA'; }
+      else if (h.status==='HOT') { cls='err'; label='HOT'; }
+      else if (h.status==='WARN') { cls='warn'; label='WARN'; }
+      badge.className = 'badge ' + cls; badge.textContent = label;
+      const tip = h && (h.tooltip || '') || 'NVMe';
+      // Use data-tip tooltip on the badge, and title on icon
+      badge.setAttribute('data-tip', tip);
+      icon.setAttribute('title', tip);
+      wrap.appendChild(icon); wrap.appendChild(badge);
+      container.appendChild(wrap);
+    } catch (e) {
+      // no-op
+    }
+  }
+
   if (elToggle) elToggle.addEventListener('click', (e)=>{
     e.preventDefault(); state.unit = state.unit==='percent'?'gib':'percent'; updateUnit([]);
   });
@@ -188,4 +221,7 @@
   // initial load and then poll every 12s (covers 10s cache)
   load();
   setInterval(load, 12000);
+  // NVMe health: refresh every 10 minutes
+  loadNvme();
+  setInterval(loadNvme, 10*60*1000);
 })();

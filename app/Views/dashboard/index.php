@@ -62,7 +62,10 @@ window.UI_CONFIG = window.UI_CONFIG || { temp: { cpu: { cold:45, hot:70 }, ambie
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7h18M7 3v4M17 3v4M7 13h2M11 13h2M15 13h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <h4 style="margin:0">Stockage</h4>
                 </div>
-                <button type="button" class="btn small" data-action="toggle-unit" title="Basculer % / GiB">% / GiB</button>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span id="nvmeHealth" data-nvme-health class="chip-row"></span>
+                    <button type="button" class="btn small" data-action="toggle-unit" title="Basculer % / GiB">% / GiB</button>
+                </div>
             </div>
             <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
                 <canvas id="storagePie" width="320" height="220" aria-label="Répartition de l\'utilisé par volume"></canvas>
