@@ -1,5 +1,8 @@
 <?php /* View copied from legacy dashboard.php body to preserve UI and JS */ ?>
-<script>window.SYSINFO_URL = '/api/sysinfo'; window.POWER_ENDPOINT = '/dashboard/power';</script>
+<script>window.SYSINFO_URL = '/api/sysinfo'; window.POWER_ENDPOINT = '/dashboard/power';
+// UI configuration (can be overridden server-side without changing JS)
+window.UI_CONFIG = window.UI_CONFIG || { temp: { cpu: { cold:45, hot:70 }, ambient: { cold:10, hot:25 } }, icons: { set: 'lucide' }, a11y: { forceHighContrast: false } };
+</script>
 <?php $csrf = htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>
 <meta name="csrf-token" content="<?= $csrf ?>">
 
@@ -53,14 +56,32 @@
     <?php show_flash(); ?>
 
     <div class="metrics">
+        <div class="card" id="storageCard">
+            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7h18M7 3v4M17 3v4M7 13h2M11 13h2M15 13h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <h4 style="margin:0">Stockage</h4>
+                </div>
+                <button type="button" class="btn small" data-action="toggle-unit" title="Basculer % / GiB">% / GiB</button>
+            </div>
+            <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+                <canvas id="storagePie" width="320" height="220" aria-label="Répartition de l\'utilisé par volume"></canvas>
+                <div id="storageGrid" style="flex:1;min-width:240px"></div>
+            </div>
+        </div>
         <div class="metric">
             <h4>Sites</h4>
             <div class="value"><?= $sitesCount ?></div>
         </div>
 
         <div class="card">
-            <div class="small">CPU Temp</div>
+            <div class="small" style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>CPU Temp</span></div>
             <div class="value big gray" id="cpuTempVal">n/a</div>
+        </div>
+
+        <div class="card">
+            <div class="small" style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Temp Ext</span></div>
+            <div class="value big gray" id="ambientTempVal">n/a</div>
         </div>
 
         <div class="card">
@@ -171,3 +192,4 @@
     </div>
 </div>
 <script src="/js/energy.js" defer></script>
+<script src="/js/storage.js" defer></script>

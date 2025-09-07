@@ -59,6 +59,7 @@ class SystemInfoService
         $uptime = $this->collectUptime();
         $load = $this->collectLoadavg();
         $cpu = $this->collectCpu();
+        $ambient = $this->collectAmbient();
         $mem = $this->collectMem();
         $disk = $this->collectDisk();
         $os = $this->collectOs();
@@ -71,6 +72,7 @@ class SystemInfoService
             'uptime' => $uptime,
             'loadavg' => $load,
             'cpu' => $cpu,
+            'ambient' => $ambient,
             'mem' => $mem,
             'disk' => $disk,
             'os' => $os,
@@ -254,6 +256,23 @@ class SystemInfoService
         $fp = @stream_socket_client('unix://' . $sock, $errno, $errstr, 0.02);
         if (is_resource($fp)) { @fclose($fp); return true; }
         return true; // if exists but cannot connect, still consider alive (service may restrict)
+    }
+
+    private function collectAmbient(): array
+    {
+        // Try a few common sources; return null if not available.
+        // 1) Optional drop-in files updated by an external sensor agent
+        $paths = ['/run/ambient_temp_c', '/tmp/ambient_temp_c'];
+        foreach ($paths as $p) {
+            $t = @file_get_contents($p);
+            if (is_string($t) && trim($t) !== '') {
+                $v = (float)trim($t);
+                return [ 'temp_c' => round($v, 1), 'unit' => 'C', 'ts' => time() ];
+            }
+        }
+        // 2) Heuristic: hwmon/iio sensors (very device-specific) — keep safe and fast
+        // Skipped by default to avoid overhead; can be implemented later if needed.
+        return [ 'temp_c' => null, 'unit' => 'C', 'ts' => time() ];
     }
 
     private function collectNginx(): array

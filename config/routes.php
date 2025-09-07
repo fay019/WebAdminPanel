@@ -24,6 +24,7 @@ return [
         '/sites/{id}/edit' => 'SitesController@edit',
         // API sysinfo
         '/api/sysinfo' => 'DashboardController@api',
+        '/api/storage' => 'DashboardController@storage',
         // API energy
         '/energy/status' => 'EnergyController@status',
         '/api/energy/status' => 'EnergyController@status',

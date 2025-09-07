@@ -4,6 +4,7 @@ use App\Helpers\Response;
 use App\Services\SysInfoService;
 use App\Services\PowerService;
 use App\Services\SystemInfoService;
+use App\Services\StorageService;
 
 class DashboardController {
     public function index(): void {
@@ -21,6 +22,15 @@ class DashboardController {
     public function api(): void {
         header('Content-Type: application/json; charset=UTF-8');
         $svc = new SystemInfoService(4);
+        $data = $svc->get();
+        echo json_encode($data, JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    // Authenticated JSON endpoint for storage volumes
+    public function storage(): void {
+        header('Content-Type: application/json; charset=UTF-8');
+        $svc = new StorageService(10);
         $data = $svc->get();
         echo json_encode($data, JSON_UNESCAPED_SLASHES);
         exit;

@@ -3,6 +3,8 @@
   if (window.__DASHBOARD_RENDERER__) return; // singleton guard
   window.__DASHBOARD_RENDERER__ = true;
 
+  const UI_CFG = Object.assign({ temp: { cpu: { cold:45, hot:70 }, ambient: { cold:10, hot:25 } }, icons: { set: 'lucide' }, a11y: { forceHighContrast: false } }, window.UI_CONFIG||{});
+
   const elUptime = document.getElementById('uptimeVal');
   const elDisk = document.querySelector('[data-metric="diskMain"]');
   const elOS = document.querySelector('[data-metric="osPretty"]');
@@ -30,6 +32,28 @@
     return parts.length?parts.join(' '):'0 s';
   }
 
+  function classifyTemp(v, type){
+    const t = Number(v);
+    if (!isFinite(t)) return { state:'NA', color:'#999' };
+    const th = (type==='ambient') ? UI_CFG.temp.ambient : UI_CFG.temp.cpu;
+    if (t < th.cold) return { state:'FROID', color:'#3b82f6' };
+    if (t > th.hot) return { state:'CHAUD', color:'#ef4444' };
+    return { state:'NORMAL', color:'#10b981' };
+  }
+
+  function ensureTempBadge(){
+    const v = document.getElementById('cpuTempVal'); if (!v) return null;
+    let b = v.nextElementSibling && v.nextElementSibling.classList.contains('badge') ? v.nextElementSibling : null;
+    if (!b) { b = document.createElement('span'); b.className='badge'; b.style.marginLeft='8px'; v.after(b); }
+    return b;
+  }
+  function ensureAmbientBadge(){
+    const v = document.getElementById('ambientTempVal'); if (!v) return null;
+    let b = v.nextElementSibling && v.nextElementSibling.classList.contains('badge') ? v.nextElementSibling : null;
+    if (!b) { b = document.createElement('span'); b.className='badge'; b.style.marginLeft='8px'; v.after(b); }
+    return b;
+  }
+
   function onUpdate(e){
     const data = (e && e.detail && e.detail.data) || window.SYSINFO_LAST_DATA || {};
     if (!data || typeof data !== 'object') return;
@@ -52,6 +76,28 @@
         } else if (elUptime && !elUptime.textContent) {
           setText(elUptime, formatted);
         }
+      }
+    } catch {}
+
+    // CPU Temperature classification + badge
+    try {
+      const rawTemp = (data.cpu && (data.cpu.temp_c ?? data.cpu.tempC)) ?? (data.cpu_temp || data['cpu-temp'] || null);
+      if (rawTemp != null) {
+        const el = document.getElementById('cpuTempVal');
+        const cls = classifyTemp(rawTemp, 'cpu');
+        if (el) { el.style.color = cls.color; el.title = `Temp CPU — ${rawTemp} °C (${cls.state})`; el.textContent = `${rawTemp} °C`; }
+        const badge = ensureTempBadge(); if (badge) { badge.textContent = cls.state; badge.style.background = cls.color; badge.style.color = '#fff'; }
+      }
+    } catch {}
+
+    // Ambient Temperature classification + badge (if available)
+    try {
+      const amb = data.ambient && (data.ambient.temp_c ?? data.ambient.tempC);
+      if (amb != null) {
+        const el = document.getElementById('ambientTempVal');
+        const cls = classifyTemp(amb, 'ambient');
+        if (el) { el.style.color = cls.color; el.title = `Temp Ext — ${amb} °C (${cls.state})`; el.textContent = `${amb} °C`; }
+        const badge = ensureAmbientBadge(); if (badge) { badge.textContent = cls.state; badge.style.background = cls.color; badge.style.color = '#fff'; }
       }
     } catch {}
 
