@@ -3,7 +3,7 @@
   if (window.__DASHBOARD_RENDERER__) return; // singleton guard
   window.__DASHBOARD_RENDERER__ = true;
 
-  const UI_CFG = Object.assign({ temp: { cpu: { cold:45, hot:70 }, ambient: { cold:10, hot:25 } }, icons: { set: 'lucide' }, a11y: { forceHighContrast: false } }, window.UI_CONFIG||{});
+  const UI_CFG = Object.assign({ temp: { cpu: { cold:45, hot:70 } }, icons: { set: 'lucide' }, a11y: { forceHighContrast: false } }, window.UI_CONFIG||{});
 
   const elUptime = document.getElementById('uptimeVal');
   const elDisk = document.querySelector('[data-metric="diskMain"]');
@@ -47,12 +47,6 @@
     if (!b) { b = document.createElement('span'); b.className='badge'; b.style.marginLeft='8px'; v.after(b); }
     return b;
   }
-  function ensureAmbientBadge(){
-    const v = document.getElementById('ambientTempVal'); if (!v) return null;
-    let b = v.nextElementSibling && v.nextElementSibling.classList.contains('badge') ? v.nextElementSibling : null;
-    if (!b) { b = document.createElement('span'); b.className='badge'; b.style.marginLeft='8px'; v.after(b); }
-    return b;
-  }
 
   function onUpdate(e){
     const data = (e && e.detail && e.detail.data) || window.SYSINFO_LAST_DATA || {};
@@ -90,16 +84,7 @@
       }
     } catch {}
 
-    // Ambient Temperature classification + badge (if available)
-    try {
-      const amb = data.ambient && (data.ambient.temp_c ?? data.ambient.tempC);
-      if (amb != null) {
-        const el = document.getElementById('ambientTempVal');
-        const cls = classifyTemp(amb, 'ambient');
-        if (el) { el.style.color = cls.color; el.title = `Temp Ext — ${amb} °C (${cls.state})`; el.textContent = `${amb} °C`; }
-        const badge = ensureAmbientBadge(); if (badge) { badge.textContent = cls.state; badge.style.background = cls.color; badge.style.color = '#fff'; }
-      }
-    } catch {}
+    // Ambient temperature removed (no external probe). No-op.
 
     // CPU cores
     const cores = data.cpu && typeof data.cpu.cores === 'number' ? data.cpu.cores : null;
@@ -115,15 +100,7 @@
     const kernel = data.os && data.os.kernel ? data.os.kernel : null;
     if (kernel != null && last.kernel !== kernel) { setText(elKernel, kernel); last.kernel = kernel; }
 
-    // Disk main (if any normalized string exists) — fallback to composed text
-    if (data.disk && data.disk.srv_www) {
-      const d = data.disk.srv_www; // {size_gb, used_gb, avail_gb, used_pct}
-      const text = `${d.used_gb}G/${d.size_gb}G (${d.used_pct}%)`;
-      if (last.diskMain !== text) { setText(elDisk, text); last.diskMain = text; }
-    }
-
-    // Disk /var/www (legacy field likely present in initial PHP render) – if backend also sends string
-    if (data.disk_www) { if (last.diskWww !== data.disk_www) { setText(elDiskWww, data.disk_www); last.diskWww = data.disk_www; } }
+    // Disk stats now sourced from /api/storage by storage.js (path_stats). Ignore sysinfo.disk.* here.
 
     // Top CPU / MEM labels if present
     if (data.cpu && data.cpu.top_cpu_proc) {

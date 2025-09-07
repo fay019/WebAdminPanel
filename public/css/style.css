@@ -409,8 +409,11 @@ code {
     justify-content: flex-start;
     padding: 6px 4px;
 }
-.mini-donut canvas { width: 80px; height: 80px; }
+.mini-donut canvas { width: clamp(90px, 12vw, 140px); height: clamp(90px, 12vw, 140px); }
 .mini-donut .smallmono { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Storage pie sizing: clamp 160–260px with square aspect */
+#storagePie { width: clamp(160px, 22vw, 260px); height: auto; aspect-ratio: 1 / 1; }
 
 .metric h4 {
     margin: 0 0 6px;

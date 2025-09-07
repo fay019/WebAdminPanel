@@ -117,7 +117,7 @@
       const wrap = document.createElement('div');
       wrap.className = 'mini-donut';
       wrap.style.textAlign='center';
-      const c = document.createElement('canvas'); c.width=80; c.height=80; wrap.appendChild(c);
+      const c = document.createElement('canvas'); wrap.appendChild(c);
       const label = document.createElement('div'); label.className='smallmono'; label.textContent = `${v.label ? v.label+ ' || ' + v.device : v.device} (${v.mountpoint})`;
       label.title = tip(v);
       wrap.appendChild(label);
@@ -143,7 +143,7 @@
         new Chart(c.getContext('2d'), { type: 'doughnut', data: {
           labels: ['Utilisé','Libre'],
           datasets: [{ data: [v.used_bytes, Math.max(0, v.size_bytes - v.used_bytes)], backgroundColor: [hashColor(v.id || v.device), 'rgba(120,120,120,0.2)'], borderWidth: 0 }]
-        }, options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: ()=> tip(v) } } }, cutout: '70%', radius: 36 } });
+        }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ()=> tip(v) } } }, cutout: '70%' } });
       }
     });
   }
@@ -158,7 +158,9 @@
     if (window.Chart && elPie){
       if (pieChart) { pieChart.destroy(); pieChart = null; }
       pieChart = new Chart(elPie.getContext('2d'), { type: 'pie', data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] }, options: {
-        plugins: { legend: { position: 'right', labels: { boxWidth: 12 } }, tooltip: { callbacks: { label: (ctx)=>{
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx)=>{
           const idx = ctx.dataIndex; const vol = items[idx].v; return tip(vol);
         } } } },
       }});
@@ -240,6 +242,15 @@
       updateTiles(data.path_stats || {});
     } catch (e) {
       console.debug('[storage] fail', e?.message||e);
+      // Explicit failure UX: no fallback to sysinfo
+      try {
+        if (elTotals) elTotals.textContent = 'Stockage indisponible';
+        if (elGrid) elGrid.innerHTML = '';
+        if (elVolumesTitle) elVolumesTitle.textContent = 'Volumes (0)';
+        if (pieChart) { try { pieChart.destroy(); } catch(_) {} pieChart = null; }
+        if (elRootTile) { elRootTile.textContent = 'n/a'; ensureWarnBadge(elRootTile, false); }
+        if (elWebTile) { elWebTile.textContent = 'n/a'; ensureWarnBadge(elWebTile, false); }
+      } catch(_) {}
     }
   }
 

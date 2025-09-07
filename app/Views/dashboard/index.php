@@ -57,7 +57,7 @@ window.UI_CONFIG = window.UI_CONFIG || { temp: { cpu: { cold:45, hot:70 }, ambie
 
     <div class="metrics">
         <!-- Stockage — Synthèse -->
-        <div class="card" id="storageCard" style="grid-column: span 2">
+        <div class="card" id="storageCard">
             <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
                 <div style="display:flex;align-items:center;gap:8px">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7h18M7 3v4M17 3v4M7 13h2M11 13h2M15 13h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -69,7 +69,7 @@ window.UI_CONFIG = window.UI_CONFIG || { temp: { cpu: { cold:45, hot:70 }, ambie
                 </div>
             </div>
             <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
-                <canvas id="storagePie" width="320" height="220" aria-label="Répartition de l'utilisé par volume"></canvas>
+                <canvas id="storagePie" aria-label="Répartition de l'utilisé par volume"></canvas>
                 <div class="smallmono" id="storageTotals" style="min-width:240px"></div>
             </div>
         </div>
@@ -127,10 +127,6 @@ window.UI_CONFIG = window.UI_CONFIG || { temp: { cpu: { cold:45, hot:70 }, ambie
             <div class="value big gray" id="cpuTempVal">n/a</div>
         </div>
 
-        <div class="card">
-            <div class="small" style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Temp Ext</span></div>
-            <div class="value big gray" id="ambientTempVal">n/a</div>
-        </div>
 
         <div class="card">
             <div class="small">RAM</div>
