@@ -5,8 +5,9 @@ class StorageService {
     private int $ttl;
     private string $cacheFile;
 
+    // Pseudo filesystems to exclude strictly (spec list)
     private const EXCLUDE_FS = [
-        'tmpfs','devtmpfs','overlay','squashfs','proc','sysfs','pstore','debugfs','securityfs','nsfs','autofs','aufs','efivarfs','mqueue','bpf','ramfs','tracefs','selinuxfs',
+        'tmpfs','devtmpfs','overlay','squashfs','fusectl','binfmt_misc','configfs','rootfs','proc','sysfs','pstore','debugfs','securityfs','nsfs','autofs','aufs','efivarfs','mqueue','bpf','ramfs','tracefs','selinuxfs','devpts','rpc_pipefs',
         'cgroup','cgroup2','cgroupfs'
     ];
 
@@ -16,7 +17,7 @@ class StorageService {
     }
 
     public function get(): array {
-        $cacheKey = 'mwp_storage_v1';
+        $cacheKey = 'mwp_storage_v2';
         if (function_exists('apcu_fetch')) {
             $ok=false; $d=apcu_fetch($cacheKey,$ok); if($ok && is_array($d)) return $d;
         }
@@ -33,39 +34,61 @@ class StorageService {
     private function writeFileCache(array $data): void { $tmp=$this->cacheFile.'.tmp'; @file_put_contents($tmp,json_encode($data,JSON_UNESCAPED_SLASHES)); @rename($tmp,$this->cacheFile); }
 
     private function collect(): array {
-        $mounts = $this->parseMounts();
+        $mounts = $this->findmnt();
+        $blk = $this->lsblkMap();
         $vols = [];
         $seenDev = [];
         foreach ($mounts as $m) {
-            // Deduplicate by device id
-            $devKey = $m['spec'] . '|' . $m['fs'];
+            $mp = $m['target']; if ($mp==='') continue;
+            $dev = $m['source']; $fs = strtolower($m['fstype'] ?? '');
+            // Exclude pseudo-FS by fstype
+            if ($this->isPseudoFs($fs)) continue;
+            // Inclusion rule: mountpoint non-empty AND (lsblk TYPE in {part,lvm,crypt} OR device starts with /dev/)
+            $blkType = strtolower($blk[$dev]['type'] ?? '');
+            $include = ($blkType === 'part' || $blkType === 'lvm' || $blkType === 'crypt' || str_starts_with($dev, '/dev/'));
+            if (!$include) continue;
+            // De-duplicate bind mounts and duplicates of same device
+            $devKey = ($blk[$dev]['uuid'] ?? '') . '|' . $dev . '|' . $fs;
             if (isset($seenDev[$devKey])) continue;
+            if (strpos($m['opts'] ?? '', 'bind') !== false) continue;
             $seenDev[$devKey] = true;
-            // Use PHP disk functions
-            $total = @disk_total_space($m['file']);
-            $free  = @disk_free_space($m['file']);
+
+            // StatVFS via PHP
+            $total = @disk_total_space($mp);
+            $free  = @disk_free_space($mp);
             if ($total === false || $free === false) continue;
+            if ((int)$total === 0) continue; // ignore size_bytes == 0
             $used = max(0, $total - $free);
             $pct = $total>0 ? round($used*100/$total,1) : 0.0;
-            $label = $this->guessLabel($m['spec'],$m['file']);
+
+            // Label and id
+            $label = $blk[$dev]['label'] ?? $this->guessLabel($dev,$mp);
+            $uuid  = $blk[$dev]['uuid'] ?? '';
+            $id = $uuid ?: $dev;
+
             $vols[] = [
-                'id' => $m['spec'],
-                'device' => $m['spec'],
-                'label' => $label,
-                'mountpoint' => $m['file'],
-                'fstype' => $m['fs'],
+                'id' => $id,
+                'device' => $dev,
+                'label' => $label ?: basename($dev),
+                'mountpoint' => $mp,
+                'fstype' => $fs,
                 'size_bytes' => (int)$total,
                 'used_bytes' => (int)$used,
                 'free_bytes' => (int)$free,
                 'used_pct' => $pct,
-                'is_sd' => (bool)preg_match('/\bmmcblk/',$m['spec']),
-                'is_external' => $this->isExternal($m),
+                'is_sd' => (bool)preg_match('/\bmmcblk/',$dev),
+                'is_external' => $this->isExternal(['spec'=>$dev,'opts'=>$m['opts'] ?? '']),
             ];
         }
         // totals
         $totSize=0; $totUsed=0; $totFree=0;
         foreach ($vols as $v){ $totSize+=$v['size_bytes']; $totUsed+=$v['used_bytes']; $totFree+=$v['free_bytes']; }
         $totPct = $totSize>0? round($totUsed*100/$totSize,1):0.0;
+
+        // path_stats for '/' and '/var/www'
+        $root = $this->statPath('/');
+        $web  = is_dir('/var/www') ? $this->statPath('/var/www') : null;
+
         return [
             'volumes' => $vols,
             'totals' => [
@@ -74,39 +97,74 @@ class StorageService {
                 'free_bytes'=>(int)$totFree,
                 'used_pct'=>$totPct,
             ],
+            'path_stats' => [ 'root' => $root, 'web' => $web ],
             'ts' => time(),
         ];
     }
 
-    private function parseMounts(): array {
+    private function findmnt(): array {
+        $out = @shell_exec('findmnt -J -r -o SOURCE,TARGET,FSTYPE,OPTIONS 2>/dev/null');
+        if (!is_string($out) || $out==='') return $this->parseMountsFallback();
+        $j = json_decode($out, true);
+        $arr = [];
+        if (isset($j['filesystems']) && is_array($j['filesystems'])) {
+            foreach ($j['filesystems'] as $fs) {
+                $src = (string)($fs['source'] ?? ''); $tgt = (string)($fs['target'] ?? ''); $fst=(string)($fs['fstype'] ?? ''); $opt=(string)($fs['options'] ?? '');
+                if ($tgt==='') continue;
+                $arr[] = ['source'=>$src,'target'=>$tgt,'fstype'=>$fst,'opts'=>$opt];
+            }
+        }
+        return $arr;
+    }
+
+    private function parseMountsFallback(): array {
         $rows = [];
         $raw = @file_get_contents('/proc/self/mounts');
         if (!is_string($raw) || $raw==='') $raw = @file_get_contents('/proc/mounts');
         if (!is_string($raw) || $raw==='') return $rows;
         foreach (preg_split('/\r?\n/', trim($raw)) as $line) {
             if ($line==='') continue;
-            // Fields: spec file vfs opts freq passno (space-escaped with \040)
             $parts = preg_split('/\s+/', $line);
             if (count($parts) < 3) continue;
             $spec = str_replace('\\040',' ', $parts[0]);
             $file = str_replace('\\040',' ', $parts[1]);
             $vfs  = $parts[2];
-            // Filter pseudo FS
-            if ($this->isPseudoFs($vfs)) continue;
-            // Skip special mountpoints if desired?
-            // Avoid double counting bind mounts: detect with mount options "bind" or same spec+fstype
             $opts = $parts[3] ?? '';
-            if (strpos($opts, 'bind') !== false) continue;
-            // Skip read-only technical from boot (e.g., /boot/firmware as vfat is still real; keep it)
-            $rows[] = ['spec'=>$spec,'file'=>$file,'fs'=>$vfs,'opts'=>$opts];
+            $rows[] = ['source'=>$spec,'target'=>$file,'fstype'=>$vfs,'opts'=>$opts];
         }
-        // Prefer "longest mountpoint first" to avoid nested mounts later if ever needed
-        usort($rows, fn($a,$b)=>strlen($b['file'])<=>strlen($a['file']));
-        // Deduplicate same device mounted multiple places → keep first occurrence
-        $unique = [];
-        $seen = [];
-        foreach ($rows as $r){ $k=$r['spec'].'|'.$r['fs']; if(isset($seen[$k])) continue; $seen[$k]=true; $unique[]=$r; }
-        return $unique;
+        return $rows;
+    }
+
+    private function lsblkMap(): array {
+        $map = [];
+        $out = @shell_exec('lsblk -J -o NAME,TYPE,MOUNTPOINT,LABEL,FSTYPE,PKNAME,UUID,PATH 2>/dev/null');
+        if (!is_string($out) || $out==='') return $map;
+        $j = json_decode($out, true);
+        $nodes = $j['blockdevices'] ?? [];
+        $stack = $nodes;
+        while ($stack) {
+            $n = array_pop($stack);
+            $path = $n['path'] ?? null; if ($path) {
+                $map[$path] = [
+                    'type' => strtolower((string)($n['type'] ?? '')),
+                    'label'=> (string)($n['label'] ?? ''),
+                    'uuid' => (string)($n['uuid'] ?? ''),
+                    'fstype'=> (string)($n['fstype'] ?? ''),
+                ];
+            }
+            if (!empty($n['children']) && is_array($n['children'])) {
+                foreach ($n['children'] as $c) $stack[] = $c;
+            }
+        }
+        return $map;
+    }
+
+    private function statPath(string $path): ?array {
+        $total = @disk_total_space($path); $free = @disk_free_space($path);
+        if ($total === false || $free === false) return null;
+        $used = max(0, $total - $free);
+        $pct = $total>0 ? round($used*100/$total,1) : 0.0;
+        return [ 'size_bytes'=>(int)$total, 'used_bytes'=>(int)$used, 'free_bytes'=>(int)$free, 'used_pct'=>$pct ];
     }
 
     private function isPseudoFs(string $fs): bool {
@@ -128,8 +186,8 @@ class StorageService {
     }
 
     private function isExternal(array $m): bool {
-        // Heuristic: USB devices often appear as /dev/sdX or /dev/sdXN on Pi; internal NVMe as nvme*, SD as mmcblk*
-        $spec = $m['spec'];
+        // Heuristic: USB devices often appear as /dev/sdX or /dev/sdXN
+        $spec = $m['spec'] ?? '';
         if (preg_match('/\b(sd[a-z]|sd[a-z]\d+)\b/', $spec)) return true;
         if (strpos($m['opts'] ?? '', 'x-gvfs-show') !== false) return true;
         return false;
