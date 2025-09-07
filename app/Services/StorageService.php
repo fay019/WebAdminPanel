@@ -78,8 +78,33 @@ class StorageService {
                 'used_pct' => $pct,
                 'is_sd' => (bool)preg_match('/\bmmcblk/',$dev),
                 'is_external' => $this->isExternal(['spec'=>$dev,'opts'=>$m['opts'] ?? '']),
+                'is_nvme' => (bool)preg_match('/\bnvme\d+n\d+p?\d*$/', $dev) || str_starts_with($dev, '/dev/nvme'),
             ];
         }
+        // Derive roles/badges: NVMe primary if same base device hosts '/'; SD marked as backup
+        $baseHasRoot = [];
+        $rootDev = null;
+        foreach ($vols as $v) { if ($v['mountpoint'] === '/') { $rootDev = $v['device']; break; } }
+        $baseFrom = function(string $dev): string {
+            // /dev/nvme0n1p2 -> /dev/nvme0n1 ; /dev/mmcblk0p2 -> /dev/mmcblk0
+            if (preg_match('#^(/dev/nvme\d+n\d+)p?\d*$#', $dev, $m)) return $m[1];
+            if (preg_match('#^(/dev/mmcblk\d+)p?\d*$#', $dev, $m)) return $m[1];
+            if (preg_match('#^(/dev/[a-z]+\d+)\d*$#', $dev, $m)) return $m[1];
+            return $dev;
+        };
+        $rootBase = $rootDev ? $baseFrom($rootDev) : null;
+        foreach ($vols as &$v) {
+            $badges = [];
+            $base = $baseFrom($v['device']);
+            $isPrimary = ($rootBase && $base === $rootBase && ($v['is_nvme'] ?? false));
+            if (!empty($v['is_nvme'])) { $badges[] = 'NVMe'; if ($isPrimary) $badges[] = 'primaire'; }
+            if (!empty($v['is_sd'])) { $badges[] = 'SD'; $badges[] = 'secours'; }
+            $v['role_primary'] = $isPrimary;
+            $v['role_backup'] = !empty($v['is_sd']);
+            $v['badges'] = $badges;
+        }
+        unset($v);
+
         // totals
         $totSize=0; $totUsed=0; $totFree=0;
         foreach ($vols as $v){ $totSize+=$v['size_bytes']; $totUsed+=$v['used_bytes']; $totFree+=$v['free_bytes']; }

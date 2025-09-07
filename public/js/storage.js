@@ -56,7 +56,7 @@
 
   function buildPieData(volumes){
     const totalUsed = volumes.reduce((s,v)=>s+v.used_bytes,0) || 1;
-    let items = volumes.map(v=>({ key: `${v.label || v.device} (${v.mountpoint})`, used: v.used_bytes, share: v.used_bytes/totalUsed, v }));
+    let items = volumes.map(v=>({ key: `${(v.label? (v.label + ' || ' + v.device) : v.device)} (${v.mountpoint})`, used: v.used_bytes, share: v.used_bytes/totalUsed, v }));
     // Group others if more than MAX_SEGMENTS or if any item <1% share
     items.sort((a,b)=>b.used - a.used);
     const needGroupByCount = items.length > MAX_SEGMENTS;
@@ -95,9 +95,20 @@
       wrap.style.display='inline-block'; wrap.style.margin='8px'; wrap.style.textAlign='center';
       const c = document.createElement('canvas'); c.width=80; c.height=80; wrap.appendChild(c);
       const label = document.createElement('div'); label.className='smallmono'; label.textContent = `${v.label ? v.label+ ' || ' + v.device : v.device} (${v.mountpoint})`;
-      label.style.maxWidth='160px'; label.style.overflow='hidden'; label.style.textOverflow='ellipsis'; label.style.whiteSpace='nowrap';
+      label.style.maxWidth='200px'; label.style.overflow='hidden'; label.style.textOverflow='ellipsis'; label.style.whiteSpace='nowrap';
       label.title = tip(v);
       wrap.appendChild(label);
+      // badges row
+      const badgesRow = document.createElement('div'); badgesRow.className = 'chip-row'; badgesRow.style.marginTop = '4px';
+      const addBadge = (txt, cls, tipTxt)=>{ const b = document.createElement('span'); b.className = 'badge'+(cls?(' '+cls):''); b.textContent = txt; if (tipTxt) b.setAttribute('data-tip', tipTxt); badgesRow.appendChild(b); };
+      if (Array.isArray(v.badges)) {
+        v.badges.forEach((bTxt)=>{ if (bTxt) addBadge(bTxt, '', null); });
+      } else {
+        if (v.is_nvme) addBadge('NVMe');
+        if (v.is_sd) addBadge('SD');
+      }
+      if ((v.used_pct||0) >= 95) addBadge('ALERTE', 'err', 'Espace disque ≥95% utilisé');
+      wrap.appendChild(badgesRow);
       elGrid.appendChild(wrap);
       if (window.Chart){
         new Chart(c.getContext('2d'), { type: 'doughnut', data: {
