@@ -14,7 +14,11 @@
   if (!elCard) return;
   const elToggle = elCard.querySelector('[data-action="toggle-unit"]');
   const elPie = elCard.querySelector('#storagePie');
-  const elGrid = elCard.querySelector('#storageGrid');
+  const elTotals = elCard.querySelector('#storageTotals');
+  const elGrid = document.getElementById('storageGrid');
+  const elVolumesTitle = document.getElementById('volumesTitle');
+  const elTableBody = document.querySelector('#volumesTable tbody');
+  const elCopyBtn = document.getElementById('copyStorageJson');
   const elNvme = elCard.querySelector('[data-nvme-health]');
 
   const elRootTile = document.querySelector('[data-metric="diskMain"]');
@@ -105,14 +109,16 @@
   }
 
   function renderGrid(volumes){
+    if (!elGrid) return;
     elGrid.innerHTML = '';
-    volumes.forEach(v=>{
+    // sort by used_bytes desc
+    const sorted = [...volumes].sort((a,b)=> (b.used_bytes||0) - (a.used_bytes||0));
+    sorted.forEach(v=>{
       const wrap = document.createElement('div');
       wrap.className = 'mini-donut';
-      wrap.style.display='inline-block'; wrap.style.margin='8px'; wrap.style.textAlign='center';
+      wrap.style.textAlign='center';
       const c = document.createElement('canvas'); c.width=80; c.height=80; wrap.appendChild(c);
       const label = document.createElement('div'); label.className='smallmono'; label.textContent = `${v.label ? v.label+ ' || ' + v.device : v.device} (${v.mountpoint})`;
-      label.style.maxWidth='260px'; label.style.overflow='hidden'; label.style.textOverflow='ellipsis'; label.style.whiteSpace='nowrap';
       label.title = tip(v);
       wrap.appendChild(label);
       // numeric line: utilisé/total (xx,x %)
@@ -149,7 +155,7 @@
     const labels = items.map(x=>x.key);
     const values = items.map(x=>x.used);
     const colors = items.map(x=>hashColor((x.v.id||x.v.device||'') ));
-    if (window.Chart){
+    if (window.Chart && elPie){
       if (pieChart) { pieChart.destroy(); pieChart = null; }
       pieChart = new Chart(elPie.getContext('2d'), { type: 'pie', data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] }, options: {
         plugins: { legend: { position: 'right', labels: { boxWidth: 12 } }, tooltip: { callbacks: { label: (ctx)=>{
@@ -159,11 +165,20 @@
     }
   }
 
+  function renderTotals(volumes){
+    if (!elTotals) return;
+    const used = volumes.reduce((s,v)=>s + (Number(v.used_bytes)||0), 0);
+    const size = volumes.reduce((s,v)=>s + (Number(v.size_bytes)||0), 0);
+    const pct = size>0 ? (used*100/size) : 0;
+    elTotals.textContent = `Total — ${fmtDec(used/(1024**3))} Go / ${fmtDec(size/(1024**3))} Go (${fmtDec(pct)} %)`;
+  }
+
   function updateUnit(){
     // Re-render to update tooltips
     if (window.__STORAGE_LAST_VOLUMES__) {
       renderPie(window.__STORAGE_LAST_VOLUMES__);
       renderGrid(window.__STORAGE_LAST_VOLUMES__);
+      renderTotals(window.__STORAGE_LAST_VOLUMES__);
     }
   }
 
@@ -196,11 +211,33 @@
       const r = await fetch(API, { cache:'no-store' }); if (!r.ok) throw new Error('http '+r.status); const data = await r.json();
       const volumes = Array.isArray(data.volumes) ? data.volumes : [];
       window.__STORAGE_LAST_VOLUMES__ = volumes;
+      // Titles and counts
+      if (elVolumesTitle) elVolumesTitle.textContent = `Volumes (${volumes.length})`;
+      // Render pie + totals + donuts grid
       renderPie(volumes);
+      renderTotals(volumes);
       renderGrid(volumes);
+      // Fill table if present
+      if (elTableBody) {
+        elTableBody.innerHTML = '';
+        volumes.forEach(v=>{
+          const used = Number(v.used_bytes||0); const size = Number(v.size_bytes||0); const free = Math.max(0, size-used); const pct = size>0?(used*100/size):0;
+          const tr = document.createElement('tr');
+          const td = (t)=>{ const x=document.createElement('td'); x.textContent=t; return x; };
+          tr.appendChild(td(v.mountpoint||''));
+          tr.appendChild(td(v.fs||v.fstype||''));
+          tr.appendChild(td(`${fmtDec(used/(1024**3))} Go`));
+          tr.appendChild(td(`${fmtDec(free/(1024**3))} Go`));
+          tr.appendChild(td(`${fmtDec(size/(1024**3))} Go`));
+          tr.appendChild(td(`${fmtDec(pct)} %`));
+          elTableBody.appendChild(tr);
+        });
+      }
+      // Copy JSON button
+      if (elCopyBtn) {
+        elCopyBtn.onclick = ()=>{ try { navigator.clipboard.writeText(JSON.stringify({ volumes }, null, 2)); elCopyBtn.textContent='Copié !'; setTimeout(()=>elCopyBtn.textContent='Copier JSON storage',1200); } catch(_){} };
+      }
       updateTiles(data.path_stats || {});
-      const tot = data.totals || null; const elTot = document.getElementById('storageTotals');
-      if (elTot && tot){ const used=Number(tot.used_bytes||0), size=Number(tot.size_bytes||0), pct=size>0?(used*100/size):0; elTot.textContent = `Total — ${fmtDec(used/(1024**3))} Go / ${fmtDec(size/(1024**3))} Go (${fmtDec(pct)} %)`; }
     } catch (e) {
       console.debug('[storage] fail', e?.message||e);
     }
@@ -259,11 +296,16 @@
         // timestamp ago
         const ts = Number(h && h.ts) || 0; if (ts>0){ const mins = Math.floor((Date.now()/1000 - ts)/60); tsEl.textContent = `il y a ${mins} min`; } else { tsEl.textContent = 'n/a'; }
         // NA banner with reason
+        const metricsGrid = card.querySelector('.grid');
         if (!h || h.status==='NA'){
           banner.style.display='';
           const reason = (h && h.reason) ? h.reason : 'indisponible';
-          banner.textContent = `Santé NVMe indisponible (${reason}). Comment activer ? Installer un collecteur nvme smart-log avec timer systemd (toutes les 10 min) vers /var/cache/panel/nvme-health.json.`;
-        } else { banner.style.display='none'; banner.textContent=''; }
+          banner.textContent = `Santé NVMe indisponible (${reason})`;
+          if (metricsGrid) metricsGrid.style.display = 'none';
+        } else {
+          banner.style.display='none'; banner.textContent='';
+          if (metricsGrid) metricsGrid.style.display = '';
+        }
       }
     } catch (e) {
       // no-op
@@ -274,10 +316,18 @@
     e.preventDefault(); state.unit = state.unit==='percent'?'gib':'percent'; updateUnit([]);
   });
 
-  // initial load and then poll every 12s (covers 10s cache)
+  // initial load and then poll every 15s (storage 15–30 s)
+  function startStoragePolling(){ if (window.__STORAGE_TIMER__) clearInterval(window.__STORAGE_TIMER__); window.__STORAGE_TIMER__ = setInterval(load, 15000); }
+  function stopStoragePolling(){ if (window.__STORAGE_TIMER__) { clearInterval(window.__STORAGE_TIMER__); window.__STORAGE_TIMER__=null; } }
+  function startNvmePolling(){ if (window.__NVME_TIMER__) clearInterval(window.__NVME_TIMER__); window.__NVME_TIMER__ = setInterval(loadNvme, 10*60*1000); }
+  function stopNvmePolling(){ if (window.__NVME_TIMER__) { clearInterval(window.__NVME_TIMER__); window.__NVME_TIMER__=null; } }
   load();
-  setInterval(load, 12000);
-  // NVMe health: refresh every 10 minutes
   loadNvme();
-  setInterval(loadNvme, 10*60*1000);
+  startStoragePolling();
+  startNvmePolling();
+  // Pause when tab is hidden
+  document.addEventListener('visibilitychange', ()=>{
+    if (document.hidden) { stopStoragePolling(); stopNvmePolling(); }
+    else { load(); loadNvme(); startStoragePolling(); startNvmePolling(); }
+  });
 })();

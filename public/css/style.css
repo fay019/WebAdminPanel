@@ -365,10 +365,22 @@ code {
 /* --- Dashboard metrics grid --- */
 .metrics {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: start; /* no stretch: cards have independent height */
+    grid-auto-flow: dense; /* fill holes without masonry */
+    grid-template-columns: 1fr; /* mobile default */
     gap: 12px;
     margin-top: 10px;
 }
+
+@media (min-width: 768px) {
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1280px) {
+    .metrics { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Ensure cards auto-height in grid */
+.metrics > .card, .metrics > .metric { height: auto; min-height: 0; align-self: start; }
 
 .metric {
     background: var(--card);
@@ -376,6 +388,29 @@ code {
     border-radius: 12px;
     padding: 12px 14px;
 }
+
+/* Mini donuts grid for volumes */
+.mini-donuts-grid {
+    display: grid;
+    gap: 10px 12px;
+    grid-template-columns: 1fr; /* mobile */
+}
+@media (min-width: 768px) {
+    .mini-donuts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+    .mini-donuts-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.mini-donut {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 6px 4px;
+}
+.mini-donut canvas { width: 80px; height: 80px; }
+.mini-donut .smallmono { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .metric h4 {
     margin: 0 0 6px;

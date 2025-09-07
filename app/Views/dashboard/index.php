@@ -56,11 +56,12 @@ window.UI_CONFIG = window.UI_CONFIG || { temp: { cpu: { cold:45, hot:70 }, ambie
     <?php show_flash(); ?>
 
     <div class="metrics">
-        <div class="card" id="storageCard">
+        <!-- Stockage — Synthèse -->
+        <div class="card" id="storageCard" style="grid-column: span 2">
             <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
                 <div style="display:flex;align-items:center;gap:8px">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7h18M7 3v4M17 3v4M7 13h2M11 13h2M15 13h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <h4 style="margin:0">Stockage</h4>
+                    <h4 style="margin:0">Stockage — Synthèse</h4>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
                     <span id="nvmeHealth" data-nvme-health class="chip-row"></span>
@@ -69,11 +70,35 @@ window.UI_CONFIG = window.UI_CONFIG || { temp: { cpu: { cold:45, hot:70 }, ambie
             </div>
             <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
                 <canvas id="storagePie" width="320" height="220" aria-label="Répartition de l'utilisé par volume"></canvas>
-                <div id="storageGrid" style="flex:1;min-width:240px"></div>
+                <div class="smallmono" id="storageTotals" style="min-width:240px"></div>
             </div>
-            <div class="smallmono" id="storageTotals" style="margin-top:6px"></div>
         </div>
 
+        <!-- Volumes (N) -->
+        <div class="card" id="volumesMiniDonuts">
+            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+                <h4 style="margin:0" id="volumesTitle">Volumes (0)</h4>
+            </div>
+            <div id="storageGrid" class="mini-donuts-grid"></div>
+        </div>
+
+        <!-- Volumes — Tableau (repliable) -->
+        <div class="card" id="volumesTableCard">
+            <details>
+                <summary class="small" style="cursor:pointer"><strong>Volumes — Tableau</strong> (replié)</summary>
+                <div style="margin-top:8px">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button type="button" class="btn small" id="copyStorageJson">Copier JSON storage</button></div>
+                    <div class="table-responsive">
+                        <table class="table compact" id="volumesTable">
+                            <thead><tr><th>Mountpoint</th><th>FS</th><th>Utilisé</th><th>Libre</th><th>Taille</th><th>%</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <!-- NVMe Health -->
         <div class="card" id="nvmeHealthCard">
             <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
                 <div style="display:flex;align-items:center;gap:8px">
