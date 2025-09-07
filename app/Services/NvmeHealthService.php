@@ -6,11 +6,12 @@ class NvmeHealthService
     private int $ttl;
     private string $cacheFile;
 
-    public function __construct(int $ttlSeconds = 600)
+    public function __construct(int $ttlSeconds = 900)
     {
-        // default 10 minutes
-        $this->ttl = max(5, $ttlSeconds);
-        $this->cacheFile = sys_get_temp_dir() . '/mwp_nvme_health.json';
+        // default 15 minutes TTL for cache freshness policy
+        $this->ttl = max(60, $ttlSeconds);
+        // Read-only cache path produced by privileged collector (root timer)
+        $this->cacheFile = '/var/cache/panel/nvme-health.json';
     }
 
     public function get(): array
@@ -22,144 +23,131 @@ class NvmeHealthService
         }
         $file = $this->readFileCache();
         if ($file) return $file;
-        $data = $this->collect();
-        if (function_exists('apcu_store')) apcu_store($cacheKey, $data, $this->ttl);
-        $this->writeFileCache($data);
+        // If cache missing or stale, return NA with reason and do NOT attempt to run nvme here.
+        $stale = $this->readFileCacheStaleInfo();
+        $data = $this->formatNA($stale['device'] ?? null, 'stale_cache');
+        if (function_exists('apcu_store')) apcu_store($cacheKey, $data, 5);
         return $data;
     }
 
     private function readFileCache(): ?array
     {
-        $f = $this->cacheFile; if (!is_readable($f)) return null; $st=@stat($f); if(!$st) return null; if ((time()-(int)$st['mtime'])>$this->ttl) return null; $raw=@file_get_contents($f); if($raw===false) return null; $j=json_decode($raw,true); return is_array($j)?$j:null;
+        $f = $this->cacheFile;
+        if (!is_readable($f)) return null;
+        $st = @stat($f); if (!$st) return null;
+        $mtime = (int)$st['mtime'];
+        $raw = @file_get_contents($f); if ($raw === false) return null;
+        $j = json_decode($raw, true);
+        if (!is_array($j)) return null;
+        // Normalize various possible collector outputs to the API contract
+        $res = $this->normalizeFromRaw($j, $mtime);
+        // Enforce TTL: if stale, return NA with reason
+        if ((time() - $mtime) > $this->ttl) {
+            $res['ok'] = false;
+            $res['status'] = 'NA';
+            $res['reason'] = 'stale_cache';
+        }
+        return $res;
     }
-    private function writeFileCache(array $data): void { $tmp=$this->cacheFile.'.tmp'; @file_put_contents($tmp, json_encode($data, JSON_UNESCAPED_SLASHES)); @rename($tmp, $this->cacheFile); }
 
-    private function collect(): array
+    private function readFileCacheStaleInfo(): array
     {
-        $dev = $this->detectPrimaryNvmeDevice();
-        if ($dev === null) {
-            return [ 'ok' => false, 'status' => 'NA', 'device' => null, 'error' => 'nvme_not_found', 'ts' => time() ];
+        $f = $this->cacheFile;
+        $info = ['device'=>null];
+        if (is_readable($f)) {
+            $raw = @file_get_contents($f);
+            $j = json_decode((string)$raw, true);
+            if (is_array($j)) {
+                $info['device'] = $j['device'] ?? ($j['nvme'] ?? ($j['dev'] ?? null));
+            }
         }
-        $smart = $this->readSmartLog($dev);
-        if ($smart === null) {
-            return [ 'ok' => false, 'status' => 'NA', 'device' => $dev, 'error' => 'smartlog_unavailable', 'ts' => time() ];
-        }
-        $tempC = $this->extractTempC($smart);
-        $pctUsed = $this->num($smart['percentage_used'] ?? null);
-        $mediaErrors = $this->num($smart['media_errors'] ?? null);
-        $poh = $this->num($smart['power_on_hours'] ?? null);
-        $size = $this->detectDeviceSize($dev);
-        $sizeText = $size ? $this->humanSize($size) : '';
+        return $info;
+    }
 
-        $status = 'OK';
-        if ($tempC !== null && $tempC > 80) $status = 'HOT';
-        elseif (($tempC !== null && $tempC >= 70) || ($mediaErrors !== null && $mediaErrors > 0)) $status = 'WARN';
-
-        $tooltipParts = [];
-        $name = 'NVMe' . ($sizeText?(' '.$sizeText):'');
-        $tooltipParts[] = $name;
-        if ($tempC !== null) $tooltipParts[] = $tempC . "°C";
-        if ($pctUsed !== null) $tooltipParts[] = $pctUsed . "% wear";
-        if ($mediaErrors !== null) $tooltipParts[] = $mediaErrors . " errors";
-        if ($poh !== null) $tooltipParts[] = $poh . " h";
-        $tooltip = implode(' — ', $tooltipParts);
-
+    private function formatNA(?string $device, string $reason): array
+    {
         return [
-            'ok' => true,
-            'device' => $dev,
-            'temperature_c' => $tempC,
-            'percentage_used' => $pctUsed,
-            'media_errors' => $mediaErrors,
-            'power_on_hours' => $poh,
-            'size_bytes' => $size,
-            'size_text' => $sizeText,
-            'status' => $status,
-            'tooltip' => $tooltip,
+            'ok' => false,
+            'status' => 'NA',
+            'device' => $device,
+            'metrics' => [
+                'temperature_c' => null,
+                'percentage_used' => null,
+                'media_errors' => null,
+                'power_on_hours' => null,
+            ],
             'ts' => time(),
+            'reason' => $reason,
         ];
     }
 
-    private function detectPrimaryNvmeDevice(): ?string
+    private function normalizeFromRaw(array $raw, int $mtime): array
     {
-        // Try from mounted root and NVMe base
-        try {
-            $root = trim((string)@shell_exec("findmnt -n -o SOURCE / 2>/dev/null"));
-            if ($root !== '' && preg_match('#^/dev/nvme\d+n\d+p?\d*$#', $root)) {
-                if (preg_match('#^(/dev/nvme\d+n\d+)#', $root, $m)) return $m[1];
-            }
-        } catch (\Throwable) {}
-        // lsblk fallback: choose first nvme disk (type disk) or path
-        $out = @shell_exec('lsblk -J -o NAME,TYPE,PATH 2>/dev/null');
-        if (is_string($out) && $out !== '') {
-            $j = json_decode($out, true);
-            foreach (($j['blockdevices'] ?? []) as $n) {
-                $type = strtolower((string)($n['type'] ?? ''));
-                $path = (string)($n['path'] ?? '');
-                if ($type === 'disk' && str_starts_with($path, '/dev/nvme')) return $path;
-            }
-        }
-        // Fallback to common default
-        if (is_readable('/dev/nvme0n1')) return '/dev/nvme0n1';
-        return null;
-    }
+        // Try to map standard nvme smart-log JSON
+        $device = $raw['device'] ?? ($raw['dev'] ?? ($raw['nvme'] ?? null));
+        // Some collectors might store the whole nvme smart-log payload under 'smart' key
+        $smart = $raw['smart'] ?? $raw;
 
-    private function readSmartLog(string $device): ?array
-    {
-        // Prefer JSON output
-        $cmd = 'nvme smart-log -o json ' . escapeshellarg($device) . ' 2>/dev/null';
-        $out = @shell_exec($cmd);
-        if (is_string($out) && trim($out) !== '') {
-            $j = json_decode($out, true);
-            if (is_array($j)) return $j;
-        }
-        // Non-JSON fallback (parse key: value)
-        $cmd2 = 'nvme smart-log ' . escapeshellarg($device) . ' 2>/dev/null';
-        $txt = @shell_exec($cmd2);
-        if (!is_string($txt) || $txt === '') return null;
-        $res = [];
-        foreach (preg_split('/\r?\n/', trim($txt)) as $line) {
-            if (preg_match('/^\s*([a-zA-Z0-9_\-]+)\s*:\s*(.+)$/', $line, $m)) {
-                $key = strtolower(str_replace('-', '_', trim($m[1])));
-                $val = trim($m[2]);
-                if (is_numeric($val)) $val = 0 + $val;
-                $res[$key] = $val;
-            }
-        }
-        return $res ?: null;
-    }
-
-    private function extractTempC(array $smart): ?int
-    {
-        // JSON usually exposes temperature in Kelvin or Celsius depending on nvme-cli version
-        // Common fields: temperature, temperature_sensor_1..n in Kelvin; or temp in C
+        $tempC = null;
         if (isset($smart['temperature'])) {
             $t = (float)$smart['temperature'];
-            // Many builds provide in Kelvin
-            if ($t > 120) return (int)round($t - 273.15);
-            return (int)round($t);
-        }
-        foreach ($smart as $k=>$v) {
-            if (preg_match('/^temperature(_sensor_\d+)?$/', (string)$k)) {
-                $t = (float)$v; if ($t > 120) return (int)round($t - 273.15); else return (int)round($t);
+            $tempC = ($t > 120) ? (int)round($t - 273.15) : (int)round($t);
+        } elseif (isset($smart['composite_temperature'])) {
+            $t = (float)$smart['composite_temperature'];
+            $tempC = ($t > 120) ? (int)round($t - 273.15) : (int)round($t);
+        } else {
+            foreach ($smart as $k=>$v) {
+                if (preg_match('/^temperature(_sensor_\d+)?$/', (string)$k)) {
+                    $t = (float)$v; $tempC = ($t > 120) ? (int)round($t - 273.15) : (int)round($t); break;
+                }
             }
         }
-        if (isset($smart['composite_temperature'])) { $t=(float)$smart['composite_temperature']; if ($t>120) return (int)round($t-273.15); else return (int)round($t); }
-        return null;
-    }
+        $pctUsed = null; if (isset($smart['percentage_used'])) { $pctUsed = (int)$smart['percentage_used']; }
+        $mediaErrors = null; if (isset($smart['media_errors'])) { $mediaErrors = (int)$smart['media_errors']; }
+        $poh = null; if (isset($smart['power_on_hours'])) { $poh = (int)$smart['power_on_hours']; }
 
-    private function detectDeviceSize(string $device): ?int
-    {
-        $out = @shell_exec('lsblk -b -n -o SIZE ' . escapeshellarg($device) . ' 2>/dev/null');
-        if (is_string($out) && trim($out) !== '') { $n = (int)trim($out); if ($n>0) return $n; }
-        return null;
-    }
+        // If collector already provided metrics block, prefer it
+        if (isset($raw['metrics']) && is_array($raw['metrics'])) {
+            $m = $raw['metrics'];
+            $tempC = $m['temperature_c'] ?? $tempC;
+            $pctUsed = $m['percentage_used'] ?? $pctUsed;
+            $mediaErrors = $m['media_errors'] ?? $mediaErrors;
+            $poh = $m['power_on_hours'] ?? $poh;
+        }
 
-    private function humanSize(int $bytes): string
-    {
-        $units = ['B','KB','MB','GB','TB','PB']; $i=0; $v=(float)$bytes; while ($v>=1024 && $i<count($units)-1) { $v/=1024; $i++; }
-        $v = ($i>=3) ? round($v,1) : round($v);
-        return $v . $units[$i];
-    }
+        // Determine status per rules
+        $status = 'NA'; $okFlag = false; $reason = null;
+        if ($tempC===null && $pctUsed===null && $mediaErrors===null && $poh===null) {
+            $okFlag = false; $status = 'NA'; $reason = 'smartlog_unavailable';
+        } else {
+            $okFlag = true;
+            if (($mediaErrors !== null && $mediaErrors > 0) || ($tempC !== null && $tempC > 80)) {
+                $status = 'HOT';
+            } elseif (($tempC !== null && $tempC >= 70 && $tempC <= 80) || ($pctUsed !== null && $pctUsed > 5 && $pctUsed <= 10)) {
+                $status = 'WARN';
+            } else {
+                // OK: temp < 70, wear <= 5, errors = 0
+                $tempOk = ($tempC === null) ? true : ($tempC < 70);
+                $wearOk = ($pctUsed === null) ? true : ($pctUsed <= 5);
+                $errOk = ($mediaErrors === null) ? true : ($mediaErrors === 0);
+                $status = ($tempOk && $wearOk && $errOk) ? 'OK' : 'WARN';
+            }
+        }
 
-    private function num($v): ?int { if ($v === null || $v === '') return null; if (is_numeric($v)) return (int)$v; $n = (int)preg_replace('/[^0-9]/','', (string)$v); return $n>=0?$n:null; }
+        $ts = $raw['ts'] ?? $mtime;
+        $res = [
+            'ok' => $okFlag,
+            'status' => $status,
+            'device' => $device,
+            'metrics' => [
+                'temperature_c' => $tempC,
+                'percentage_used' => $pctUsed,
+                'media_errors' => $mediaErrors,
+                'power_on_hours' => $poh,
+            ],
+            'ts' => is_int($ts) ? $ts : $mtime,
+            'reason' => $reason,
+        ];
+        return $res;
+    }
 }

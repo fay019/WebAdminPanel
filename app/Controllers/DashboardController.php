@@ -101,8 +101,9 @@ class DashboardController {
     // NVMe Health endpoint (10 min cache)
     public function nvmeHealth(): void {
         header('Content-Type: application/json; charset=UTF-8');
-        header('Cache-Control: public, max-age=600, s-maxage=600');
-        $svc = new NvmeHealthService(600);
+        // Collector updates every 10 minutes; API considers stale after 15 minutes
+        header('Cache-Control: public, max-age=60, s-maxage=60');
+        $svc = new NvmeHealthService(900);
         $data = $svc->get();
         echo json_encode($data, JSON_UNESCAPED_SLASHES);
         exit;

@@ -68,10 +68,30 @@ window.UI_CONFIG = window.UI_CONFIG || { temp: { cpu: { cold:45, hot:70 }, ambie
                 </div>
             </div>
             <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
-                <canvas id="storagePie" width="320" height="220" aria-label="Répartition de l\'utilisé par volume"></canvas>
+                <canvas id="storagePie" width="320" height="220" aria-label="Répartition de l'utilisé par volume"></canvas>
                 <div id="storageGrid" style="flex:1;min-width:240px"></div>
             </div>
+            <div class="smallmono" id="storageTotals" style="margin-top:6px"></div>
         </div>
+
+        <div class="card" id="nvmeHealthCard">
+            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zm3 0h14v8H5zM7 11h2m3 0h2m3 0h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <h4 style="margin:0">Santé NVMe</h4>
+                </div>
+                <span class="badge" id="nvmeHealthStatus">NA</span>
+            </div>
+            <div class="small" id="nvmeHealthBanner" style="display:none;margin-bottom:6px"></div>
+            <div class="grid grid-2" style="gap:8px">
+                <div>Température</div><div class="smallmono" id="nvmeTemp">n/a</div>
+                <div>Usure</div><div class="smallmono" id="nvmeWear">n/a</div>
+                <div>Erreurs média</div><div class="smallmono" id="nvmeErrors">n/a</div>
+                <div>Heures de marche</div><div class="smallmono" id="nvmePOH">n/a</div>
+                <div>Actualisé</div><div class="smallmono" id="nvmeTs">n/a</div>
+            </div>
+        </div>
+
         <div class="metric">
             <h4>Sites</h4>
             <div class="value"><?= $sitesCount ?></div>

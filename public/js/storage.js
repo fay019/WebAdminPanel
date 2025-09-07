@@ -38,14 +38,29 @@
     return `hsl(${hue} ${sat}% ${light}%)`;
   }
 
+  const fr1 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const fr0 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+  function fmtDec(v){ const n = Number(v); if (!isFinite(n)) return '0'; if (Math.abs(n) >= 1000) return fr0.format(n); return fr1.format(n); }
+  function fmtPct01(n){ return fr1.format(Math.round(n*10)/10); }
+
+  function bytesToUnit(bytes){
+    let v = Number(bytes)||0; const units=['o','Ko','Mo','Go','To','Po']; let i=0;
+    while (v>=1024 && i<units.length-1){ v/=1024; i++; }
+    const str = (Math.abs(v) >= 1000) ? fr0.format(v) : fr1.format(v);
+    return { v, unit: units[i], text: `${str} ${units[i]}` };
+  }
+
   function formatGiB(bytes){ return (bytes/ (1024**3)); }
 
   function formatStats(s){
     if (!s) return 'n/a';
-    const usedGiB = formatGiB(s.used_bytes || s.usedBytes || s.used).toFixed(1);
-    const sizeGiB = formatGiB(s.size_bytes || s.sizeBytes || s.size).toFixed(1);
-    const pct = (s.used_pct != null ? s.used_pct : (s.size_bytes? (s.used_bytes*100/s.size_bytes):0)).toFixed(1);
-    return `${usedGiB}G/${sizeGiB}G (${pct}%)`;
+    const used = Number(s.used_bytes ?? s.usedBytes ?? s.used ?? 0);
+    const size = Number(s.size_bytes ?? s.sizeBytes ?? s.size ?? 0);
+    const pct = size>0 ? (used*100/size) : 0;
+    const usedGiB = fmtDec(used/ (1024**3));
+    const sizeGiB = fmtDec(size/ (1024**3));
+    return `${usedGiB} Go / ${sizeGiB} Go (${fmtDec(pct)} %)`;
   }
 
   function ensureWarnBadge(el, show){
@@ -81,11 +96,12 @@
   }
 
   function tip(vol){
-    const usedGiB = formatGiB(vol.used_bytes).toFixed(1);
-    const sizeGiB = formatGiB(vol.size_bytes).toFixed(1);
-    const pct = (vol.used_pct != null ? vol.used_pct : (vol.size_bytes? (vol.used_bytes*100/vol.size_bytes):0)).toFixed(1);
+    const used = Number(vol.used_bytes||0); const size = Number(vol.size_bytes||0);
+    const pct = size>0 ? (used*100/size) : 0;
+    const usedTxt = fmtDec(used/(1024**3));
+    const sizeTxt = fmtDec(size/(1024**3));
     const label = vol.label ? `${vol.label} || ${vol.device}` : vol.device;
-    return `${label} (${vol.mountpoint}) — ${usedGiB} / ${sizeGiB} GiB (${pct}%)`;
+    return `${label} (${vol.mountpoint}) — ${usedTxt} Go / ${sizeTxt} Go (${fmtDec(pct)} %)`;
   }
 
   function renderGrid(volumes){
@@ -96,9 +112,15 @@
       wrap.style.display='inline-block'; wrap.style.margin='8px'; wrap.style.textAlign='center';
       const c = document.createElement('canvas'); c.width=80; c.height=80; wrap.appendChild(c);
       const label = document.createElement('div'); label.className='smallmono'; label.textContent = `${v.label ? v.label+ ' || ' + v.device : v.device} (${v.mountpoint})`;
-      label.style.maxWidth='200px'; label.style.overflow='hidden'; label.style.textOverflow='ellipsis'; label.style.whiteSpace='nowrap';
+      label.style.maxWidth='260px'; label.style.overflow='hidden'; label.style.textOverflow='ellipsis'; label.style.whiteSpace='nowrap';
       label.title = tip(v);
       wrap.appendChild(label);
+      // numeric line: utilisé/total (xx,x %)
+      const nums = document.createElement('div'); nums.className='smallmono'; nums.style.marginTop='2px';
+      const used = Number(v.used_bytes||0); const size = Number(v.size_bytes||0); const pct = size>0?(used*100/size):0;
+      nums.textContent = `${fmtDec(used/(1024**3))} Go / ${fmtDec(size/(1024**3))} Go (${fmtDec(pct)} %)`;
+      nums.title = tip(v);
+      wrap.appendChild(nums);
       // badges row
       const badgesRow = document.createElement('div'); badgesRow.className = 'chip-row'; badgesRow.style.marginTop = '4px';
       const addBadge = (txt, cls, tipTxt)=>{ const b = document.createElement('span'); b.className = 'badge'+(cls?(' '+cls):''); b.textContent = txt; if (tipTxt) b.setAttribute('data-tip', tipTxt); badgesRow.appendChild(b); };
@@ -177,38 +199,72 @@
       renderPie(volumes);
       renderGrid(volumes);
       updateTiles(data.path_stats || {});
+      const tot = data.totals || null; const elTot = document.getElementById('storageTotals');
+      if (elTot && tot){ const used=Number(tot.used_bytes||0), size=Number(tot.size_bytes||0), pct=size>0?(used*100/size):0; elTot.textContent = `Total — ${fmtDec(used/(1024**3))} Go / ${fmtDec(size/(1024**3))} Go (${fmtDec(pct)} %)`; }
     } catch (e) {
       console.debug('[storage] fail', e?.message||e);
     }
   }
 
   async function loadNvme(){
-    if (!elNvme) return;
     try {
       const r = await fetch('/api/nvme/health', { cache: 'no-store' });
       if (!r.ok) throw new Error('http '+r.status);
       const h = await r.json();
-      const container = elNvme;
-      container.innerHTML = '';
-      const wrap = document.createElement('span'); wrap.className='chip-row';
-      const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
-      icon.setAttribute('viewBox','0 0 24 24'); icon.setAttribute('width','16'); icon.setAttribute('height','16'); icon.setAttribute('aria-hidden','true');
-      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-      path.setAttribute('d','M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zm3 0h14v8H5zM7 11h2m3 0h2m3 0h2');
-      path.setAttribute('stroke','currentColor'); path.setAttribute('stroke-width','1.6'); path.setAttribute('fill','none'); path.setAttribute('stroke-linecap','round'); path.setAttribute('stroke-linejoin','round');
-      icon.appendChild(path);
-      const badge = document.createElement('span'); badge.className='badge';
-      let cls = 'ok'; let label = 'OK';
-      if (!h || h.ok===false) { cls='warn'; label='NA'; }
-      else if (h.status==='HOT') { cls='err'; label='HOT'; }
-      else if (h.status==='WARN') { cls='warn'; label='WARN'; }
-      badge.className = 'badge ' + cls; badge.textContent = label;
-      const tip = h && (h.tooltip || '') || 'NVMe';
-      // Use data-tip tooltip on the badge, and title on icon
-      badge.setAttribute('data-tip', tip);
-      icon.setAttribute('title', tip);
-      wrap.appendChild(icon); wrap.appendChild(badge);
-      container.appendChild(wrap);
+      // Header chip in Storage card
+      if (elNvme){
+        const container = elNvme;
+        container.innerHTML = '';
+        const wrap = document.createElement('span'); wrap.className='chip-row';
+        const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        icon.setAttribute('viewBox','0 0 24 24'); icon.setAttribute('width','16'); icon.setAttribute('height','16'); icon.setAttribute('aria-hidden','true');
+        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+        path.setAttribute('d','M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zm3 0h14v8H5zM7 11h2m3 0h2m3 0h2');
+        path.setAttribute('stroke','currentColor'); path.setAttribute('stroke-width','1.6'); path.setAttribute('fill','none'); path.setAttribute('stroke-linecap','round'); path.setAttribute('stroke-linejoin','round');
+        icon.appendChild(path);
+        const badge = document.createElement('span'); badge.className='badge';
+        let cls = 'ok'; let label = 'OK';
+        if (!h || h.status==='NA' || h.ok===false) { cls='warn'; label='NA'; }
+        else if (h.status==='HOT') { cls='err'; label='HOT'; }
+        else if (h.status==='WARN') { cls='warn'; label='WARN'; }
+        badge.className = 'badge ' + cls; badge.textContent = label;
+        const tip = h && h.device ? `NVMe ${h.device}` : 'NVMe';
+        badge.setAttribute('data-tip', tip);
+        icon.setAttribute('title', tip);
+        wrap.appendChild(icon); wrap.appendChild(badge);
+        container.appendChild(wrap);
+      }
+      // Dedicated card
+      const card = document.getElementById('nvmeHealthCard');
+      if (card){
+        const st = document.getElementById('nvmeHealthStatus');
+        const banner = document.getElementById('nvmeHealthBanner');
+        const tempEl = document.getElementById('nvmeTemp');
+        const wearEl = document.getElementById('nvmeWear');
+        const errEl = document.getElementById('nvmeErrors');
+        const pohEl = document.getElementById('nvmePOH');
+        const tsEl = document.getElementById('nvmeTs');
+        const m = h && h.metrics || {};
+        // status badge
+        let cls = 'ok', label = 'OK';
+        if (!h || h.status==='NA' || h.ok===false) { cls='warn'; label='NA'; }
+        else if (h.status==='HOT') { cls='err'; label='HOT'; }
+        else if (h.status==='WARN') { cls='warn'; label='WARN'; }
+        st.className = 'badge ' + cls; st.textContent = label; st.setAttribute('title', h && h.device ? h.device : '');
+        // metrics
+        tempEl.textContent = (m.temperature_c!=null) ? `${m.temperature_c} °C` : 'n/a';
+        wearEl.textContent = (m.percentage_used!=null) ? `${fmtDec(m.percentage_used)} %` : 'n/a';
+        errEl.textContent = (m.media_errors!=null) ? `${m.media_errors}` : 'n/a';
+        pohEl.textContent = (m.power_on_hours!=null) ? `${m.power_on_hours} h` : 'n/a';
+        // timestamp ago
+        const ts = Number(h && h.ts) || 0; if (ts>0){ const mins = Math.floor((Date.now()/1000 - ts)/60); tsEl.textContent = `il y a ${mins} min`; } else { tsEl.textContent = 'n/a'; }
+        // NA banner with reason
+        if (!h || h.status==='NA'){
+          banner.style.display='';
+          const reason = (h && h.reason) ? h.reason : 'indisponible';
+          banner.textContent = `Santé NVMe indisponible (${reason}). Comment activer ? Installer un collecteur nvme smart-log avec timer systemd (toutes les 10 min) vers /var/cache/panel/nvme-health.json.`;
+        } else { banner.style.display='none'; banner.textContent=''; }
+      }
     } catch (e) {
       // no-op
     }
