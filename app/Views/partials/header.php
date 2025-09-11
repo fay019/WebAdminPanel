@@ -17,7 +17,7 @@ $loggedIn = function_exists('is_logged_in') ? is_logged_in() : false;
       <script src="/js/app.js" defer></script>
       <script src="/js/sysinfo.js" defer></script>
       <script src="/js/dashboardRenderer.js" defer></script>
-      <script src="/js/startReboot.js" defer></script>
+      <script src="/js/power.js" defer></script>
       <script src="/js/modules/passgen.js" defer></script>
       <script src="/js/tables.js" defer></script>
     <?php else: ?>

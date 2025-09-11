@@ -2,7 +2,7 @@
 // Dépendances UI: éléments overlay présents dans dashboard/index.php
 // Contract: écoute l’événement custom 'power:submit' émis par app.js après confirmation.
 
-(function () {
+(function () { return; /* deprecated: replaced by power.js */
   // Config endpoint: préférer window.POWER_ENDPOINT, sinon garder l’URL d’action passée (legacy)
   function getEndpoint(fallbackUrl) {
     if (typeof window.POWER_ENDPOINT === 'string' && window.POWER_ENDPOINT.trim() !== '') {
