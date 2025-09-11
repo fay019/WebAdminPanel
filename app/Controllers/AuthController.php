@@ -24,7 +24,7 @@ class AuthController {
 
     public function loginForm(): void {
         if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
-        require_once __DIR__.'/../../partials/flash.php';
+        // flash helpers are loaded by public/index.php (app/Views/partials/flash.php)
         $this->ensureMigrate();
         // generate CSRF
         $this->csrfToken();
@@ -34,7 +34,7 @@ class AuthController {
     public function login(): void {
         if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
         require_once __DIR__.'/../../lib/db.php';
-        require_once __DIR__.'/../../partials/flash.php';
+        // flash helpers are loaded by public/index.php (app/Views/partials/flash.php)
         $this->ensureMigrate();
 
         // CSRF check (POST)
@@ -70,7 +70,7 @@ class AuthController {
 
     public function logout(): void {
         if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
-        require_once __DIR__.'/../../partials/flash.php';
+        // flash helpers are loaded by public/index.php (app/Views/partials/flash.php)
         // POST is recommended and already CSRF-checked by CsrfMiddleware; ensure GET also requires CSRF
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $ok = false;
