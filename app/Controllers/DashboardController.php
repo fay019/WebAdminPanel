@@ -86,12 +86,13 @@ class DashboardController {
             Response::json(['ok' => false, 'error' => 'power_failed', 'message' => 'Aucune sortie du script'], 500);
             return;
         }
-        if (str_contains($lower, 'sudo') && (str_contains($lower, 'not') || str_contains($lower,'denied') || str_contains($lower,'password'))) {
-            Response::json(['ok' => false, 'error' => 'power_permission_denied', 'message' => $txt], 500);
-            return;
-        }
+        // Prioritize missing/invalid path classification before sudo permission checks
         if (str_contains($lower, 'no such file') || str_contains($lower, 'not found') || str_contains($lower, 'cannot open')) {
             Response::json(['ok' => false, 'error' => 'power_script_missing', 'message' => $txt], 500);
+            return;
+        }
+        if (str_contains($lower, 'sudo') && (str_contains($lower, 'denied') || str_contains($lower,'password'))) {
+            Response::json(['ok' => false, 'error' => 'power_permission_denied', 'message' => $txt], 500);
             return;
         }
         Response::json(['ok' => false, 'error' => 'power_failed', 'message' => $txt], 500);
