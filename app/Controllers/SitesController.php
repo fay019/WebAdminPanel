@@ -11,7 +11,6 @@ final class SitesController
 
     public function index(): void
     {
-        require_once __DIR__.'/../../partials/flash.php';
         $sites = $this->svc->list();
         // Compute orphan directories like legacy sites_list.php
         require_once __DIR__ . '/../../lib/db.php';
@@ -32,13 +31,11 @@ final class SitesController
 
     public function create(): void
     {
-        require_once __DIR__.'/../../partials/flash.php';
         Response::view('sites/create', []);
     }
 
     public function store(): void
     {
-        require_once __DIR__.'/../../partials/flash.php';
         $data = [
             'name' => $_POST['name'] ?? '',
             'server_names' => $_POST['server_names'] ?? '',
@@ -56,7 +53,6 @@ final class SitesController
 
     public function edit(): void
     {
-        require_once __DIR__.'/../../partials/flash.php';
         $id = (int)($_GET['id'] ?? 0);
         $site = $this->svc->find($id);
         if (!$site) { http_response_code(404); echo 'Site introuvable'; return; }
@@ -65,7 +61,6 @@ final class SitesController
 
     public function update(): void
     {
-        require_once __DIR__.'/../../partials/flash.php';
         $id = (int)($_GET['id'] ?? ($_POST['id'] ?? 0));
         $res = $this->svc->update($id, $_POST);
         $out = htmlspecialchars((string)($res['output'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -83,7 +78,6 @@ final class SitesController
 
     public function destroy(): void
     {
-        require_once __DIR__.'/../../partials/flash.php';
         $id = (int)($_GET['id'] ?? ($_POST['id'] ?? 0));
         $deleteRoot = (($_POST['delete_root'] ?? ($_GET['delete_root'] ?? '0')) === '1');
         $res = $this->svc->delete($id, $deleteRoot);
@@ -94,7 +88,6 @@ final class SitesController
 
     public function toggle(): void
     {
-        require_once __DIR__.'/../../partials/flash.php';
         $id = (int)($_GET['id'] ?? ($_POST['id'] ?? 0));
         $enable = (($_POST['enable'] ?? ($_GET['enable'] ?? '1')) === '1');
         $res = $this->svc->toggle($id, $enable);

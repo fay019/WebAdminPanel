@@ -7,7 +7,6 @@ class UsersController {
 
     public function index(): void {
         require_once __DIR__.'/../../lib/db.php';
-        require_once __DIR__.'/../../partials/flash.php';
         $this->ensureMigrate();
         // Recherche et pagination
         $q = trim((string)($_GET['q'] ?? ''));
@@ -43,14 +42,12 @@ class UsersController {
     }
 
     public function create(): void {
-        require_once __DIR__.'/../../partials/flash.php';
         $this->ensureMigrate();
         Response::view('users/create', []);
     }
 
     public function store(): void {
         require_once __DIR__.'/../../lib/db.php';
-        require_once __DIR__.'/../../partials/flash.php';
         $this->ensureMigrate();
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
@@ -80,7 +77,6 @@ class UsersController {
 
     public function edit(): void {
         require_once __DIR__.'/../../lib/db.php';
-        require_once __DIR__.'/../../partials/flash.php';
         $this->ensureMigrate();
         $id = (int)($_GET['id'] ?? 0);
         $st = db()->prepare('SELECT * FROM users WHERE id=:id'); $st->execute([':id'=>$id]); $user=$st->fetch();
@@ -90,7 +86,6 @@ class UsersController {
 
     public function update(): void {
         require_once __DIR__.'/../../lib/db.php';
-        require_once __DIR__.'/../../partials/flash.php';
         $this->ensureMigrate();
         $id = (int)($_GET['id'] ?? ($_POST['id'] ?? 0));
         $st = db()->prepare('SELECT * FROM users WHERE id=:id'); $st->execute([':id'=>$id]); $user=$st->fetch();
@@ -128,7 +123,6 @@ class UsersController {
 
     public function resetPassword(): void {
         require_once __DIR__.'/../../lib/db.php';
-        require_once __DIR__.'/../../partials/flash.php';
         $this->ensureMigrate();
         $id = (int)($_GET['id'] ?? ($_POST['id'] ?? 0));
         $st = db()->prepare('SELECT * FROM users WHERE id=:id'); $st->execute([':id'=>$id]); $user=$st->fetch();
@@ -148,7 +142,6 @@ class UsersController {
 
     public function destroy(): void {
         require_once __DIR__.'/../../lib/db.php';
-        require_once __DIR__.'/../../partials/flash.php';
         $this->ensureMigrate();
         $id = (int)($_POST['id'] ?? ($_GET['id'] ?? 0));
         $st = db()->prepare('SELECT username FROM users WHERE id=:id'); $st->execute([':id'=>$id]); $row=$st->fetch();
