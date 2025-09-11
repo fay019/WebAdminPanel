@@ -15,7 +15,7 @@ $loggedIn = function_exists('is_logged_in') ? is_logged_in() : false;
     <link rel="stylesheet" href="/css/tables.css">
     <?php if (!$isLogin && $loggedIn): ?>
       <script src="/js/app.js" defer></script>
-      <script src="/js/powerStream.js" defer></script>
+      <script src="/js/sysinfo.js" defer></script>
       <script src="/js/dashboardRenderer.js" defer></script>
       <script src="/js/startReboot.js" defer></script>
       <script src="/js/modules/passgen.js" defer></script>

@@ -31,13 +31,6 @@ require_once __DIR__.'/../app/Views/partials/flash.php';
 // i18n helper (no-op for now in views)
 require_once __DIR__.'/../app/Helpers/I18n.php';
 
-// Emit server_online once per boot as soon as app is reachable
-try {
-    \App\Services\PowerEventBus::class; // autoload available
-    $bus = new \App\Services\PowerEventBus();
-    $bus->publishServerOnlineIfNeeded();
-} catch (\Throwable $e) { /* ignore */ }
-
 $routes = require __DIR__.'/../config/routes.php';
 require_once __DIR__.'/../app/Helpers/Router.php';
 
