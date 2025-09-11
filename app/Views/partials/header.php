@@ -38,9 +38,9 @@ require_once __DIR__ . '/../../../lib/csrf.php';
                 <a href="/php/manage" title="Système" aria-label="Système"><img src="/img/menu/systemes.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/sites" title="Sites" aria-label="Sites"><img src="/img/menu/sites.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/users" title="Utilisateurs" aria-label="Utilisateurs"><img src="/img/menu/users.svg" class="nav-icon" alt="" role="presentation"></a>
-                <a href="/account.php" title="Compte" aria-label="Compte"><img src="/img/menu/account.svg" class="nav-icon" alt="" role="presentation"></a>
+                <a href="/account" title="Compte" aria-label="Compte"><img src="/img/menu/account.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a class="btn" href="/sites/create">+ Nouveau</a>
-                <a class="btn danger" href="/logout.php">Déconnexion</a>
+                <a class="btn danger" href="/logout?_csrf=<?= htmlspecialchars($_SESSION['csrf'] ?? csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">Déconnexion</a>
             <?php endif; ?>
             <div class="srv-led" id="srv-led" title="État du serveur (via /api/sysinfo)" aria-live="polite" aria-atomic="true">
                 <span class="srv-led-dot" aria-hidden="true"></span>

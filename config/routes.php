@@ -12,6 +12,9 @@ return [
         // Auth
         '/login' => 'AuthController@loginForm',
         '/logout' => 'AuthController@logout', // GET allowed but will still require CSRF
+        // Account
+        '/account' => 'AccountController@index',
+        '/account.php' => ['redirect' => '/account'],
         // Users
         '/users' => 'UsersController@index',
         '/users/create' => 'UsersController@create',
@@ -59,6 +62,9 @@ return [
         // New PhpManage routes
         '/php/manage/action' => 'PhpManageController@runAction',
         '/php/manage/stream' => 'PhpManageController@streamAction',
+        // Account actions
+        '/account/username' => 'AccountController@changeUsername',
+        '/account/password' => 'AccountController@changePassword',
         // Legacy compat POST dispatcher
         '/php_manage.php' => 'PhpManageController@legacyPost',
         // Users
