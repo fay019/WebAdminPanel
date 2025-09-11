@@ -12,12 +12,15 @@ class PowerController {
             echo 'unauthorized';
             exit;
         }
+        // Release session lock to avoid blocking other requests during long stream
+        if (session_status() === PHP_SESSION_ACTIVE) { @session_write_close(); }
+
         // SSE headers
-        header('Content-Type: text/event-stream');
+        header('Content-Type: text/event-stream; charset=UTF-8');
         header('Cache-Control: no-cache, no-transform');
         header('Connection: keep-alive');
         header('X-Accel-Buffering: no'); // Nginx: disable buffering
-        header('Content-Encoding: none');
+        // Do not set Content-Encoding to avoid proxy confusion
 
         // Ensure no BOM/previous output and immediate flush
         while (ob_get_level() > 0) { @ob_end_clean(); }
@@ -30,9 +33,12 @@ class PowerController {
 
         $bus = new PowerEventBus();
 
-        // Send a welcome comment to establish stream
-        echo ": connected\n\n";
+        // Send a welcome comment + retry to establish stream and force headers flush
+        echo ": connected\n";
+        echo "retry: 5000\n\n";
         @flush();
+        @ob_flush();
+        flush();
 
         $eventsFile = '/tmp/power_events.jsonl';
         $lastId = isset($_SERVER['HTTP_LAST_EVENT_ID']) ? trim((string)$_SERVER['HTTP_LAST_EVENT_ID']) : '';
