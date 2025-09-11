@@ -250,6 +250,17 @@
       // Handle redirects or non-200 early
       const ctype = resp.headers.get('content-type') || '';
       if (!resp.ok) {
+        // Try to parse JSON error payload for clearer message
+        if (/^application\/json/i.test(ctype)) {
+          const data = await resp.json().catch(()=>null);
+          if (data) {
+            const msg = (data.message || data.error || ('HTTP ' + resp.status));
+            PowerOverlayController.appendLog(String(msg) + '\n');
+            PowerOverlayController.setState('error');
+            PowerOverlayController.enableClose();
+            return;
+          }
+        }
         const txt = await resp.text().catch(()=> '');
         PowerOverlayController.appendLog(txt || ('HTTP '+resp.status));
         PowerOverlayController.setState('error');
