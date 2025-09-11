@@ -75,13 +75,14 @@
         if (!a) return;
 
         const msg = a.getAttribute('data-confirm') || 'Confirmer ?';
-        const actionUrl = (a.getAttribute('href') || '#').trim();
+        let actionUrl = (a.getAttribute('href') || '#').trim();
         let isPower = false;
         try { isPower = new URL(actionUrl, window.location.origin).pathname.endsWith('/system_power.php'); }
         catch { isPower = actionUrl.includes('system_power.php'); }
         const action = a.getAttribute('data-action'); // shutdown|reboot
         const csrf   = a.getAttribute('data-csrf') || '';
         const ajax   = a.getAttribute('data-ajax') || '1';
+        if (isPower) actionUrl = '/dashboard/power';
 
         e.preventDefault();
 
@@ -155,6 +156,7 @@
                     let isPower = false;
                     try { isPower = new URL(actionUrl, window.location.origin).pathname.endsWith('/system_power.php'); }
                     catch { isPower = actionUrl.includes('system_power.php'); }
+                    if (isPower) actionUrl = '/dashboard/power';
 
                     closeModal();
                     if (isPower && window.SYSINFO_URL) {

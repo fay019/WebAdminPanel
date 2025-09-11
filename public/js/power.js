@@ -211,7 +211,12 @@
     try {
       const detail = evt?.detail || {};
       const form = detail.form;
-      const actionUrl = (detail.actionUrl || '/system_power.php').trim();
+      let actionUrl = (detail.actionUrl || '/dashboard/power').trim();
+      // Normalize legacy endpoint to MVC route to avoid nginx 404 on /system_power.php
+      try {
+        const u = new URL(actionUrl, window.location.origin);
+        if (u.pathname.endsWith('/system_power.php')) actionUrl = '/dashboard/power';
+      } catch {}
       if (!form || !actionUrl) return;
       // Guard: if already running, ignore new submissions
       if (PowerOverlayController.state === 'running') {
@@ -251,6 +256,40 @@
         PowerOverlayController.enableClose();
         return;
       }
+
+      // Accept JSON (MVC endpoint) or streaming text
+      if (/^application\/json/i.test(ctype)) {
+        const data = await resp.json().catch(()=>null);
+        if (!data) {
+          PowerOverlayController.appendLog('Réponse JSON invalide');
+          PowerOverlayController.setState('error');
+          PowerOverlayController.enableClose();
+          return;
+        }
+        if (data.ok) {
+          const act = (data.action || '').toString();
+          if (act === 'reboot') {
+            PowerOverlayController.appendLog((data.message || 'Redémarrage demandé') + '\n');
+            PowerOverlayController.setState('rebooting');
+            return;
+          }
+          if (act === 'shutdown') {
+            PowerOverlayController.appendLog((data.message || 'Extinction demandée') + '\n');
+            PowerOverlayController.setState('shutting-down');
+            return;
+          }
+          PowerOverlayController.appendLog((data.message || 'OK') + '\n');
+          PowerOverlayController.setState('done');
+          PowerOverlayController.enableClose();
+          return;
+        } else {
+          PowerOverlayController.appendLog((data.message || data.error || 'Erreur') + '\n');
+          PowerOverlayController.setState('error');
+          PowerOverlayController.enableClose();
+          return;
+        }
+      }
+
       if (!/^text\/(plain|event-stream)/i.test(ctype) && !/^application\/octet-stream/i.test(ctype)) {
         const txt = await resp.text().catch(()=> '');
         PowerOverlayController.appendLog(txt || 'Réponse inattendue');
