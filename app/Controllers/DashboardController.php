@@ -2,6 +2,7 @@
 namespace App\Controllers;
 use App\Helpers\Response;
 use App\Services\PowerService;
+use App\Services\PowerEventBus;
 use App\Services\SystemInfoService;
 use App\Services\StorageService;
 use App\Services\NvmeHealthService;
@@ -60,6 +61,10 @@ class DashboardController {
             // In streaming mode, rely on exit code to infer success
             $code = is_array($res) ? ($res['code'] ?? 1) : 1;
             if ((int)$code === 0) {
+                // Publish SSE event immediately
+                $bus = new PowerEventBus();
+                if ($action === 'shutdown') { $bus->emit('shutdown_started'); }
+                elseif ($action === 'reboot') { $bus->emit('reboot_started'); }
                 $msg = ($action === 'shutdown') ? "Arrêt demandé. Le système va s’éteindre." : "Redémarrage demandé. Le système va redémarrer.";
                 Response::json(['ok' => true, 'action' => ($action ?: null), 'code' => 'accepted', 'message' => $msg], 200);
             }
@@ -72,6 +77,10 @@ class DashboardController {
         $okMarker = ($action === 'shutdown') ? 'OK: shutdown triggered' : (($action === 'reboot') ? 'OK: reboot triggered' : 'OK:');
         $ok = ($exit === 0) || ($txt !== '' && (str_contains($txt, $okMarker) || str_contains($txt, 'OK:')));
         if ($ok) {
+            // Publish SSE event immediately
+            $bus = new PowerEventBus();
+            if ($action === 'shutdown') { $bus->emit('shutdown_started'); }
+            elseif ($action === 'reboot') { $bus->emit('reboot_started'); }
             $msg = ($action === 'shutdown') ? "Arrêt demandé. Le système va s’éteindre." : "Redémarrage demandé. Le système va redémarrer.";
             Response::json(['ok' => true, 'action' => ($action ?: null), 'code' => 'accepted', 'message' => $msg], 200);
             return;

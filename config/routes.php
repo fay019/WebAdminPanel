@@ -32,6 +32,8 @@ return [
         // API energy
         '/energy/status' => 'EnergyController@status',
         '/api/energy/status' => 'EnergyController@status',
+        // SSE Power stream (secure)
+        '/api/power/stream' => 'PowerController@stream',
         // Legacy alias for compatibility
         '/ajax/sysinfo' => 'DashboardController@api',
         // Power endpoints — GET should return JSON method-not-allowed (to avoid 404/HTML)

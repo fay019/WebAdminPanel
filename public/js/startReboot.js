@@ -16,6 +16,8 @@
   const hintEl  = document.getElementById('powerHint');
   const logEl   = document.getElementById('powerLog');
   const closeBt = document.getElementById('powerClose');
+  // Listen to powerStream BroadcastChannel to infer offline/online without polling
+  const PWR_CH = ('BroadcastChannel' in window) ? new BroadcastChannel('power_events_channel_v1') : null;
 
   // --- State & cleanup management ---
   let listeners = [];
@@ -62,11 +64,11 @@
     const out = {}; (txt || '').split(/\r?\n/).forEach(l => { const i = l.indexOf('='); if (i<=0) return; const k=l.slice(0,i).trim().toLowerCase().replace(/[^a-z0-9_]+/g,'_'); const v=l.slice(i+1).trim(); out[k]=v; });
     return out;
   }
-  // Use sysinfo.js as the single source; do not fetch here
+  // Boot ID is optional; with SSE, we avoid fetching here.
   async function getBootIdSafe() {
-    const d = (window.SYSINFO_LAST_DATA || null);
-    if (d && (d.boot_id || d.bootId)) return d.boot_id || d.bootId;
-    return null;
+    try { const txt = await fetch('/api/sysinfo', { cache:'no-store' }).then(r=>r.text());
+      try { const j = JSON.parse(txt); return j.boot_id || j.bootId || null; } catch { return null; }
+    } catch { return null; }
   }
 
   async function postPowerJson(url, fd) {
@@ -174,6 +176,18 @@
         }
       };
       addListener(document, 'sysinfo:error', onErr);
+      const onCh = (evt)=>{
+        const m = evt?.data || {};
+        if (!wentOffline && m.t === 'state' && m.state === 'offline') {
+          wentOffline = true;
+          if (PWR_CH) PWR_CH.removeEventListener('message', onCh);
+          setDot('#22c55e');
+          if (logEl) logEl.textContent += 'Serveur hors ligne détecté.\n';
+          if (hintEl) hintEl.textContent = 'Serveur hors ligne détecté — Vous pouvez fermer ce message.';
+          finishOverlay();
+        }
+      };
+      addListener(PWR_CH, 'message', onCh);
       // Filet de sécurité: activer bouton après 60s si pas d'events
       addTimer(setTimeout(()=>{ if (!wentOffline) { if (hintEl) hintEl.textContent = 'Vous pouvez fermer ce message.'; finishOverlay(); } }, 60000));
       return;
@@ -204,15 +218,58 @@
             addTimer(setTimeout(()=>{ if (overlay && overlay.style.display !== 'none') closeOverlayInternal(); }, 5000));
           };
           addListener(document, 'sysinfo:update', onUpdate);
+          const onChBack = (evt)=>{
+            const m = evt?.data || {};
+            if (m.t === 'evt' && m.type === 'server_online') {
+              if (PWR_CH) PWR_CH.removeEventListener('message', onChBack);
+              if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
+              addTimer(setTimeout(()=>location.reload(), 300));
+              addTimer(setTimeout(()=>{ if (overlay && overlay.style.display !== 'none') closeOverlayInternal(); }, 5000));
+            }
+            if (m.t === 'state' && m.state === 'online') {
+              if (PWR_CH) PWR_CH.removeEventListener('message', onChBack);
+              if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
+              addTimer(setTimeout(()=>location.reload(), 300));
+              addTimer(setTimeout(()=>{ if (overlay && overlay.style.display !== 'none') closeOverlayInternal(); }, 5000));
+            }
+          };
+          addListener(PWR_CH, 'message', onChBack);
           // Timeout global au cas où (90s)
           addTimer(setTimeout(()=>{
             document.removeEventListener('sysinfo:update', onUpdate);
+            if (PWR_CH) PWR_CH.removeEventListener('message', onChBack);
             if (hintEl) hintEl.textContent = 'Tentative de rechargement…';
             location.reload();
           }, 90000));
         }
       };
       addListener(document, 'sysinfo:error', onErr);
+      const onChOff = (evt)=>{
+        const m = evt?.data || {};
+        if (!wentOffline && m.t === 'state' && m.state === 'offline') {
+          wentOffline = true;
+          if (PWR_CH) PWR_CH.removeEventListener('message', onChOff);
+          if (hintEl) hintEl.textContent = 'Hors ligne détecté — attente du retour en ligne…';
+          document.dispatchEvent(new CustomEvent('power:phase', { detail: { phase: 'reboot_wait_online' } }));
+          const onChBack = (ev2)=>{
+            const mm = ev2?.data || {};
+            if (mm.t === 'evt' && mm.type === 'server_online') {
+              if (PWR_CH) PWR_CH.removeEventListener('message', onChBack);
+              if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
+              addTimer(setTimeout(()=>location.reload(), 300));
+              addTimer(setTimeout(()=>{ if (overlay && overlay.style.display !== 'none') closeOverlayInternal(); }, 5000));
+            }
+            if (mm.t === 'state' && mm.state === 'online') {
+              if (PWR_CH) PWR_CH.removeEventListener('message', onChBack);
+              if (hintEl) hintEl.textContent = 'De retour en ligne — rechargement…';
+              addTimer(setTimeout(()=>location.reload(), 300));
+              addTimer(setTimeout(()=>{ if (overlay && overlay.style.display !== 'none') closeOverlayInternal(); }, 5000));
+            }
+          };
+          addListener(PWR_CH, 'message', onChBack);
+        }
+      };
+      addListener(PWR_CH, 'message', onChOff);
       // Filet de sécu si pas d’événements reçus
       addTimer(setTimeout(()=>{
         if (!wentOffline) {
