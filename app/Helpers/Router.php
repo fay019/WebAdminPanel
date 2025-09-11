@@ -65,7 +65,8 @@ class Router {
             $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
             $wantsJson = str_contains($accept, 'application/json');
             if ($wantsJson) {
-                Response::json(['error' => $code, 'message' => ($code===404?'Not Found':'Method Not Allowed')], $code);
+                $msg = ($code===404?'Not Found':($code===405?'Method Not Allowed':'Error'));
+                Response::json(['error' => $code, 'message' => $msg], $code);
                 return;
             }
             if ($code === 404 && is_file(__DIR__.'/../Views/errors/404.php')) {
@@ -73,10 +74,17 @@ class Router {
                 Response::view('errors/404', []);
                 return;
             }
+            if ($code === 405 && is_file(__DIR__.'/../Views/errors/405.php')) {
+                // Render MVC 405 page
+                Response::view('errors/405', []);
+                return;
+            }
         }
         $fallback = __DIR__.'/../../../public/'.($code===404?'404.html':'50x.html');
         if (is_readable($fallback)) { readfile($fallback); }
-        else { echo ($code===404?'Not Found':'Method Not Allowed'); }
+        else {
+            echo ($code===404?'Not Found':($code===405?'Method Not Allowed':'Error'));
+        }
     }
 
     private function invoke(string $controllerAction): void {
