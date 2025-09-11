@@ -1,1 +1,0 @@
-<?php header('Location: /users/create', true, 302); exit;

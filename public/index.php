@@ -27,7 +27,7 @@ spl_autoload_register(function($class){
 // Load existing libs for compatibility
 require_once __DIR__.'/../lib/auth.php';
 require_once __DIR__.'/../lib/csrf.php';
-require_once __DIR__.'/../partials/flash.php';
+require_once __DIR__.'/../app/Views/partials/flash.php';
 // i18n helper (no-op for now in views)
 require_once __DIR__.'/../app/Helpers/I18n.php';
 

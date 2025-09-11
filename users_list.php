@@ -1,1 +1,0 @@
-<?php header('Location: /users', true, 302); exit;

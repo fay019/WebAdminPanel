@@ -5,11 +5,15 @@ class SystemInfoService
 {
     private int $ttl;
     private string $cacheFile;
+    // Legacy/sysinfo script support (for streaming compatibility)
+    private string $deployScript = '/var/www/adminpanel/bin/sysinfo.sh';
+    private string $localScript;
 
     public function __construct(int $ttlSeconds = 4)
     {
         $this->ttl = max(1, $ttlSeconds);
         $this->cacheFile = sys_get_temp_dir() . '/mwp_sysinfo.json';
+        $this->localScript = __DIR__ . '/../../bin/sysinfo.sh';
     }
 
     public function get(): array
@@ -310,5 +314,50 @@ class SystemInfoService
     {
         foreach ($fns as $fn) { $v = $fn(); if ($v) return $v; }
         return null;
+    }
+
+    // --- Legacy sysinfo script bridge ---
+    private function scriptPath(): string
+    {
+        return file_exists($this->deployScript) ? $this->deployScript : $this->localScript;
+    }
+
+    public function streamRaw(): void
+    {
+        $cmd = 'sudo -n ' . escapeshellarg($this->scriptPath());
+        passthru($cmd);
+    }
+
+    // --- PHP-FPM compact status (moved from SysInfoService) ---
+    public function phpFpmCompact(array $sysinfo = []): array
+    {
+        $php_fpm_compact = [];
+        $seen = [];
+        $socketList = [];
+        if (!empty($sysinfo['php_fpm_sockets']) && $sysinfo['php_fpm_sockets'] !== 'n/a') {
+            foreach (preg_split('/\s*,\s*/', trim((string)$sysinfo['php_fpm_sockets'])) as $s) {
+                if ($s !== '') { $socketList[] = trim($s); }
+            }
+        } else {
+            foreach (glob('/run/php/php*-fpm.sock') ?: [] as $s) { $socketList[] = basename($s); }
+        }
+        foreach ($socketList as $sockName) {
+            if (!preg_match('/^php(?:(\d+\.\d+))?-fpm\.sock$/', $sockName, $m)) continue;
+            $ver   = $m[1] ?? null; $label = $ver ? "php{$ver}" : 'php'; if (isset($seen[$label])) continue;
+            $sockPath = "/run/php/{$sockName}"; $sockOk = file_exists($sockPath);
+            $svcName  = $ver ? "php{$ver}-fpm" : 'php-fpm';
+            $svcOk    = (trim((string)@shell_exec("systemctl is-active {$svcName} 2>/dev/null || true")) === 'active');
+            $php_fpm_compact[] = ['label'=>$label,'v'=>$ver?:'','ok'=>($sockOk && $svcOk),'sock'=>$sockOk,'svc'=>$svcOk];
+            $seen[$label] = true;
+        }
+        usort($php_fpm_compact, fn($a,$b)=>strnatcmp($a['label'],$b['label']));
+        if (!$php_fpm_compact) {
+            foreach (['8.2','8.3','8.4'] as $v) {
+                $sockOk = file_exists("/run/php/php{$v}-fpm.sock");
+                $svcOk  = (trim((string)@shell_exec("systemctl is-active php{$v}-fpm 2>/dev/null || true")) === 'active');
+                $php_fpm_compact[] = ['label'=>"php{$v}",'v'=>$v,'ok'=>($sockOk && $svcOk),'sock'=>$sockOk,'svc'=>$svcOk];
+            }
+        }
+        return $php_fpm_compact;
     }
 }

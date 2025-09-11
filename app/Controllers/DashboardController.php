@@ -1,7 +1,6 @@
 <?php
 namespace App\Controllers;
 use App\Helpers\Response;
-use App\Services\SysInfoService;
 use App\Services\PowerService;
 use App\Services\SystemInfoService;
 use App\Services\StorageService;
@@ -12,11 +11,11 @@ class DashboardController {
         require_once __DIR__.'/../../lib/db.php';
         $sitesCount = (int)db()->query('SELECT COUNT(*) FROM sites')->fetchColumn();
 
-        $sysSvc = new SysInfoService();
-        $sysinfo = $sysSvc->snapshot();
-        $php_fpm_compact = $sysSvc->phpFpmCompact($sysinfo);
+        $svc = new SystemInfoService(4);
+        $data = $svc->get();
+        $php_fpm_compact = $svc->phpFpmCompact($data);
 
-        Response::view('dashboard/index', compact('sitesCount','sysinfo','php_fpm_compact'));
+        Response::view('dashboard/index', compact('sitesCount','php_fpm_compact'));
     }
 
     // New normalized JSON endpoint (cached)
@@ -40,8 +39,8 @@ class DashboardController {
     public function sysinfo(): void {
         // Legacy: keep streaming the existing bin/sysinfo.sh output
         header('Content-Type: application/json; charset=utf-8');
-        $sysSvc = new SysInfoService();
-        $sysSvc->streamRaw();
+        $svc = new SystemInfoService(4);
+        $svc->streamRaw();
         exit;
     }
 
