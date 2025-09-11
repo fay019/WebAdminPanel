@@ -79,6 +79,11 @@ class Router {
                 Response::view('errors/405', []);
                 return;
             }
+            if ($code === 500 && is_file(__DIR__.'/../Views/errors/500.php')) {
+                // Render MVC 500 page
+                Response::view('errors/500', []);
+                return;
+            }
         }
         $fallback = __DIR__.'/../../../public/'.($code===404?'404.html':'50x.html');
         if (is_readable($fallback)) { readfile($fallback); }
