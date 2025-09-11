@@ -1,7 +1,20 @@
 <?php
 declare(strict_types=1);
 // Front controller
-if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
+// Configure session cookie params before starting session
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['SERVER_PORT'] ?? '80') === '443');
+    $params = session_get_cookie_params();
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => $params['path'] ?: '/',
+        'domain' => $params['domain'] ?: '',
+        'secure' => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
 
 // Simple PSR-4 like autoloader for App namespace
 spl_autoload_register(function($class){

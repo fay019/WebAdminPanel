@@ -40,7 +40,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             db()->prepare('UPDATE users SET password_hash=:h WHERE id=:id')->execute([':h'=>password_hash($n1,PASSWORD_BCRYPT), ':id'=>$user['id']]);
             audit('user.password.change',['user'=>$me]);
             logout(); session_start(); $_SESSION['flash']['ok']='Mot de passe changé. Reconnectez-vous.';
-            header('Location: /login.php'); exit;
+            header('Location: /login'); exit;
         } else flash('err',implode(' ',$err));
     }
 }

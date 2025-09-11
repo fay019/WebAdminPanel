@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 function is_logged_in(): bool { return isset($_SESSION['user']); }
-function require_login(): void { if (!is_logged_in()) { header('Location: /login.php'); exit; } }
+function require_login(): void { if (!is_logged_in()) { header('Location: /login'); exit; } }
 function login(string $u, string $p): bool {
   // Case-insensitive username lookup (SQLite lower()) while keeping password_verify() intact
   $st = db()->prepare('SELECT * FROM users WHERE lower(username) = lower(:u) LIMIT 1');

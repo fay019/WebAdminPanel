@@ -61,7 +61,7 @@ class AuthController {
             $_SESSION['user_id'] = (int)$row['id'];
             require_once __DIR__.'/../../lib/auth.php';
             audit('login', ['user'=>$row['username']]);
-            Response::redirect('/dashboard');
+            Response::redirect('/');
         } else {
             flash('err', 'Identifiants invalides.');
             Response::redirect('/login');

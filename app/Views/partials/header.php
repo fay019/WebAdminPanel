@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../../../lib/auth.php';
 require_once __DIR__ . '/../../../lib/csrf.php';
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$isLogin = ($path === '/login');
+$loggedIn = function_exists('is_logged_in') ? is_logged_in() : false;
 ?>
 <!doctype html>
 <html lang="fr">
@@ -10,12 +13,18 @@ require_once __DIR__ . '/../../../lib/csrf.php';
     <title><?php echo function_exists('__') ? __('app.title') : 'Mini Web Panel'; ?></title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/tables.css">
-    <script src="/js/app.js" defer></script>
-    <script src="/js/sysinfo.js" defer></script>
-    <script src="/js/dashboardRenderer.js" defer></script>
-    <script src="/js/startReboot.js" defer></script>
-    <script src="/js/modules/passgen.js" defer></script>
-    <script src="/js/tables.js" defer></script>
+    <?php if (!$isLogin && $loggedIn): ?>
+      <script src="/js/app.js" defer></script>
+      <script src="/js/sysinfo.js" defer></script>
+      <script src="/js/dashboardRenderer.js" defer></script>
+      <script src="/js/startReboot.js" defer></script>
+      <script src="/js/modules/passgen.js" defer></script>
+      <script src="/js/tables.js" defer></script>
+    <?php else: ?>
+      <script>window.DISABLE_GLOBAL_AUTH_REDIRECT = true;</script>
+      <script src="/js/app.js" defer></script>
+      <!-- No dashboard scripts on login -->
+    <?php endif; ?>
 </head>
 <body>
 <div class="container">
@@ -33,7 +42,7 @@ require_once __DIR__ . '/../../../lib/csrf.php';
             </div>
         </div>
         <nav id="mainNav" class="nav">
-            <?php if (is_logged_in()): ?>
+            <?php if ($loggedIn): ?>
                 <a href="/dashboard" title="Dashboard" aria-label="Dashboard"><img src="/img/menu/dashboard.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/php/manage" title="Système" aria-label="Système"><img src="/img/menu/systemes.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/sites" title="Sites" aria-label="Sites"><img src="/img/menu/sites.svg" class="nav-icon" alt="" role="presentation"></a>

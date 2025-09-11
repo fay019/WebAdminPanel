@@ -1,4 +1,6 @@
 <?php
-// Legacy dashboard neutralized: redirect to MVC route
-header("Location: /dashboard", true, 302);
+// Legacy endpoint disabled. Use MVC route /dashboard via public/index.php
+http_response_code(410);
+header('Content-Type: text/plain; charset=utf-8');
+echo "410 Gone - Legacy endpoint. Use /dashboard (MVC).";
 exit;
