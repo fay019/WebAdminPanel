@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="d899ff0a-306d-4f94-88b0-848f8a5c5da2" name="fayip">
+        <fileTransfer rootFolder="/srv/www/webadminpanel-v2" accessType="SFTP" host="faypi.local" port="22" sshConfigId="e58cf1df-6a10-434b-8d75-284d267e86bf" sshConfig="fay@faypi.local:22 key" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="3336fcef-fb27-4ce5-bb84-8e8c59a287b3" name="demoPI">
+        <fileTransfer rootFolder="/var/www/" accessType="SFTP" host="faypi.local" port="22" sshConfigId="e58cf1df-6a10-434b-8d75-284d267e86bf" sshConfig="fay@faypi.local:22 key" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

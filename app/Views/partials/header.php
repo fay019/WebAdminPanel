@@ -45,6 +45,7 @@ $loggedIn = function_exists('is_logged_in') ? is_logged_in() : false;
             <?php if ($loggedIn): ?>
                 <a href="/dashboard" title="Dashboard" aria-label="Dashboard"><img src="/img/menu/dashboard.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/php/manage" title="Système" aria-label="Système"><img src="/img/menu/systemes.svg" class="nav-icon" alt="" role="presentation"></a>
+                <a href="/dashboard/error-log" title="Error Log" aria-label="Error Log" class="btn">🚨 Error Log</a>
                 <a href="/sites" title="Sites" aria-label="Sites"><img src="/img/menu/sites.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/users" title="Utilisateurs" aria-label="Utilisateurs"><img src="/img/menu/users.svg" class="nav-icon" alt="" role="presentation"></a>
                 <a href="/account" title="Compte" aria-label="Compte"><img src="/img/menu/account.svg" class="nav-icon" alt="" role="presentation"></a>

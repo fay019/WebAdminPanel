@@ -60,30 +60,11 @@ class Router {
     }
 
     private function renderError(int $code): void {
-        // Prefer new views if Response exists
+        // Centralized response + logging
         if (class_exists('App\\Helpers\\Response')) {
-            $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
-            $wantsJson = str_contains($accept, 'application/json');
-            if ($wantsJson) {
-                $msg = ($code===404?'Not Found':($code===405?'Method Not Allowed':'Error'));
-                Response::json(['error' => $code, 'message' => $msg], $code);
-                return;
-            }
-            if ($code === 404 && is_file(__DIR__.'/../Views/errors/404.php')) {
-                // Render MVC 404 page
-                Response::view('errors/404', []);
-                return;
-            }
-            if ($code === 405 && is_file(__DIR__.'/../Views/errors/405.php')) {
-                // Render MVC 405 page
-                Response::view('errors/405', []);
-                return;
-            }
-            if ($code === 500 && is_file(__DIR__.'/../Views/errors/500.php')) {
-                // Render MVC 500 page
-                Response::view('errors/500', []);
-                return;
-            }
+            $msg = ($code===404?'Not Found':($code===405?'Method Not Allowed':'Error'));
+            Response::fail($code, $msg);
+            return;
         }
         $fallback = __DIR__.'/../../../public/'.($code===404?'404.html':'50x.html');
         if (is_readable($fallback)) { readfile($fallback); }
@@ -95,9 +76,19 @@ class Router {
     private function invoke(string $controllerAction): void {
         [$ctrl, $action] = explode('@', $controllerAction, 2);
         $class = 'App\\Controllers\\'.$ctrl;
-        if (!class_exists($class)) { http_response_code(500); echo "Controller $class not found"; return; }
+        if (!class_exists($class)) {
+            http_response_code(500);
+            if (class_exists('App\\Helpers\\Response')) { Response::fail(500, 'Internal Server Error', ['reason'=>'controller_not_found','controller'=>$class]); }
+            else { echo "Controller $class not found"; }
+            return;
+        }
         $obj = new $class();
-        if (!method_exists($obj, $action)) { http_response_code(500); echo "Action $action not found"; return; }
+        if (!method_exists($obj, $action)) {
+            http_response_code(500);
+            if (class_exists('App\\Helpers\\Response')) { Response::fail(500, 'Internal Server Error', ['reason'=>'action_not_found','controller'=>$class,'action'=>$action]); }
+            else { echo "Action $action not found"; }
+            return;
+        }
         $obj->$action();
     }
 }

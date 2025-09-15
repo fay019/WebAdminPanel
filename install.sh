@@ -155,6 +155,16 @@ mk_dir "$LOGS_DIR"
 chown_code_tree
 chown_runtime_dirs
 
+# Centralized error log directory for webadminpanel-v2 (idempotent)
+echo "[1a/7] Centralized error log directory (/srv/www/webadminpanel-v2/logs)"
+sudo mkdir -p /srv/www/webadminpanel-v2/logs
+sudo touch /srv/www/webadminpanel-v2/logs/error.log
+# Ownership and permissions as required
+sudo chown fay:www-data /srv/www/webadminpanel-v2/logs
+sudo chown fay:www-data /srv/www/webadminpanel-v2/logs/error.log
+sudo chmod 775 /srv/www/webadminpanel-v2/logs
+sudo chmod 664 /srv/www/webadminpanel-v2/logs/error.log
+
 echo "[1b/7] Marquer bin/*.sh comme exécutables + normaliser (CRLF) + droits de traversée"
 if compgen -G "$PANEL_DIR/bin/*.sh" >/dev/null 2>&1; then
   sudo chmod +x "$PANEL_DIR/bin/"*.sh || true
@@ -293,6 +303,30 @@ if ! grep -q '^env\[PANEL_DIR\]' "$PHPFPM_POOL_CONF" ; then
   echo "  - env[PANEL_DIR] ajouté et PHP-FPM rechargé"
 else
   echo "  - env[PANEL_DIR] déjà présent (skip)"
+fi
+
+# Logrotate for centralized error log
+echo "[5c/7] Logrotate configuration for error.log"
+LOGROTATE_FILE="/etc/logrotate.d/webadminpanel-v2-errorlog"
+sudo tee "$LOGROTATE_FILE" >/dev/null <<'EOF'
+/srv/www/webadminpanel-v2/logs/error.log {
+  weekly
+  rotate 8
+  missingok
+  notifempty
+  compress
+  delaycompress
+  create 664 fay www-data
+  sharedscripts
+  postrotate
+    systemctl reload php*-fpm >/dev/null 2>&1 || true
+  endscript
+}
+EOF
+
+# Verify logrotate config syntactically (dry run)
+if command -v logrotate >/dev/null 2>&1; then
+  sudo logrotate -d "$LOGROTATE_FILE" >/dev/null 2>&1 || true
 fi
 
 echo "[6/7] Vhost Nginx"

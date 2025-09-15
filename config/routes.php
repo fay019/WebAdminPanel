@@ -37,6 +37,9 @@ return [
         // Power endpoints — GET should return JSON method-not-allowed (to avoid 404/HTML)
         '/dashboard/power' => 'DashboardController@powerMethodNotAllowed',
         '/system_power.php' => 'DashboardController@powerMethodNotAllowed',
+        // Error log viewer (admin-only)
+        '/dashboard/error-log' => 'ErrorLogController@index',
+        '/dashboard/error-log/download' => 'ErrorLogController@download',
         // legacy redirects
         '/dashboard.php' => ['redirect' => '/dashboard'],
         '/users_list.php' => ['redirect' => '/users'],

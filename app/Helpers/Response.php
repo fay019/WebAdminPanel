@@ -20,5 +20,24 @@ final class Response {
         if (is_string($payload)) { echo $payload; }
         else { echo json_encode($payload, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); }
     }
+    public static function fail(int $status, string $message, array $ctx = []): void {
+        // Log 4xx/5xx centrally without sensitive data
+        if (class_exists('\\ErrorLogger')) {
+            $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+            $uri = $_SERVER['REQUEST_URI'] ?? '';
+            \ErrorLogger::log('http_' . $status, $message, array_merge(['method'=>$method,'uri'=>$uri], $ctx));
+        }
+        // Respond with JSON if requested, otherwise try view fallback
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        if (str_contains($accept, 'application/json')) {
+            self::json(['ok'=>false,'error'=>$status,'message'=>$message], $status);
+            return;
+        }
+        http_response_code($status);
+        if ($status === 404 && is_file(__DIR__.'/../Views/errors/404.php')) { self::view('errors/404'); return; }
+        if ($status === 405 && is_file(__DIR__.'/../Views/errors/405.php')) { self::view('errors/405'); return; }
+        if ($status === 500 && is_file(__DIR__.'/../Views/errors/500.php')) { self::view('errors/500'); return; }
+        echo htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
     public static function redirect(string $to, int $status=302): void { header("Location: $to", true, $status); exit; }
 }

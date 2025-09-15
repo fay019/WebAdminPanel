@@ -22,6 +22,8 @@ class PowerService {
         if (file_exists($script)) {
             return ['sudo -n ' . escapeshellarg($script) . ' ' . escapeshellarg($action), true];
         }
+        // Script missing on target
+        if (class_exists('\\ErrorLogger')) { \ErrorLogger::log('power_exec', 'Script introuvable', ['script'=>$script]); }
         // Fallback to direct system commands if script is missing on target
         if ($action === 'reboot') {
             $reboot = $this->findBin(['/sbin/reboot','/usr/sbin/reboot','/bin/systemctl','/usr/bin/systemctl']);
@@ -57,12 +59,17 @@ class PowerService {
             header('Content-Type: text/plain; charset=utf-8');
             $code = 1;
             passthru($cmd, $code);
+            if ($code !== 0 && class_exists('\\ErrorLogger')) { \ErrorLogger::log('power_exec', 'Retour non nul', ['code'=>(int)$code]); }
             return ['out' => '', 'code' => (int)$code];
         }
         $output = [];
         $code = 1;
         @exec($cmd . ' 2>&1', $output, $code);
         $out = implode("\n", $output);
+        if ($code !== 0 && class_exists('\\ErrorLogger')) {
+            \ErrorLogger::log('power_exec', 'Retour non nul', ['code'=>(int)$code]);
+            if ($out !== '') { \ErrorLogger::log('power_exec', 'stderr', ['stderr'=>substr($out,0,1000)]); }
+        }
         return ['out' => $out, 'code' => (int)$code];
     }
 }
