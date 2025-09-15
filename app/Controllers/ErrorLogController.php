@@ -4,6 +4,11 @@ namespace App\Controllers;
 use App\Helpers\Response;
 use App\Helpers\FileUtils;
 
+// Defensive include in case autoloading fails in some environments
+if (!class_exists('App\\Helpers\\FileUtils')) {
+    require_once __DIR__ . '/../Helpers/FileUtils.php';
+}
+
 final class ErrorLogController {
     private string $path = '/srv/www/webadminpanel-v2/logs/error.log';
 
