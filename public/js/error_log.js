@@ -30,6 +30,18 @@
   let activeTypes = new Set(['php_error','php_exception','php_fatal','http_404','http_405','http_500','power_exec','other']);
   let keyword = '';
 
+    // Colorer les labels des filtres comme des badges
+    function colorizeFilters(){
+        document.querySelectorAll('.filter').forEach(f => {
+            const input = f.querySelector('input.flt');
+            const label = f.querySelector('label');
+            if (!input || !label) return;
+            const type = input.value;
+            const cls = TYPE_COLORS[type] || 'muted';
+            label.classList.add('badge', cls);
+        });
+    }
+
   function fmtDateFromParts(dateStr){
     // Input like '2025-09-15 16:57:33' → '15 Sep 2025 - 16:57:33 (UTC)'
     const m = String(dateStr||'').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/);
@@ -207,6 +219,7 @@
   btnRefresh?.addEventListener('click', refresh);
   btnLoadMore?.addEventListener('click', function(){ visibleCount = Math.min(entries.length, visibleCount + pageSize); render(); });
 
+  colorizeFilters();
   // Init from embedded JSON
   try {
     const raw = document.getElementById(RAW_ID)?.textContent || '[]';

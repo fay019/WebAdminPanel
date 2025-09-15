@@ -1436,3 +1436,16 @@ code {
     .nav .btn .nav-ico,
     .nav .btn .nav-icon { width: 22px; height: 22px; }
 }
+/* Filtres: labels en badges colorés (alignés avec la liste) */
+.filter label.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid #22324d;
+    background: #0e1627;
+    color: #cbd5e1;
+    cursor: pointer;
+    user-select: none;
+}
