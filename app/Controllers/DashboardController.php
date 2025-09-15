@@ -7,8 +7,10 @@ use App\Services\StorageService;
 use App\Services\NvmeHealthService;
 
 class DashboardController {
+    private function ensureMigrate(): void { require_once __DIR__.'/../../lib/db.php'; migrate(); }
+
     public function index(): void {
-        require_once __DIR__.'/../../lib/db.php';
+        $this->ensureMigrate();
         $sitesCount = (int)db()->query('SELECT COUNT(*) FROM sites')->fetchColumn();
 
         $svc = new SystemInfoService(4);
