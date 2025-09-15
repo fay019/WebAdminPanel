@@ -2,7 +2,7 @@
 // Error Log — modern UI
 // Expects: $lines (array of raw lines), $ts (int last updated)
 $ts = isset($ts) ? (int)$ts : time();
-$initialJson = json_encode(array_values($lines ?? []), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+$initialJson = isset($entries) ? json_encode(array_values($entries), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) : json_encode(array_values($lines ?? []), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 ?>
 <div class="page-toolbar card">
   <div class="toolbar-left">
@@ -20,11 +20,11 @@ $initialJson = json_encode(array_values($lines ?? []), JSON_UNESCAPED_UNICODE|JS
 <div class="card">
   <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
     <div class="filters" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <label class="chip small"><input type="checkbox" class="flt" value="php_error" checked> php_error</label>
-      <label class="chip small danger"><input type="checkbox" class="flt" value="php_exception" checked> php_exception</label>
-      <label class="chip small info"><input type="checkbox" class="flt" value="http_404" checked> http_404</label>
-      <label class="chip small warn"><input type="checkbox" class="flt" value="http_500" checked> http_500</label>
-      <label class="chip small"><input type="checkbox" class="flt" value="other" checked> autres</label>
+      <label class="chip small" for="flt_php_error"><input id="flt_php_error" type="checkbox" class="flt" value="php_error" checked> php_error</label>
+      <label class="chip small danger" for="flt_php_exception"><input id="flt_php_exception" type="checkbox" class="flt" value="php_exception" checked> php_exception</label>
+      <label class="chip small info" for="flt_http_404"><input id="flt_http_404" type="checkbox" class="flt" value="http_404" checked> http_404</label>
+      <label class="chip small warn" for="flt_http_500"><input id="flt_http_500" type="checkbox" class="flt" value="http_500" checked> http_500</label>
+      <label class="chip small" for="flt_other"><input id="flt_other" type="checkbox" class="flt" value="other" checked> autres</label>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <input type="text" id="logSearch" class="input" placeholder="Rechercher… (ex: PDO, Router)" aria-label="Rechercher dans les logs">

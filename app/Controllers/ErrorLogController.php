@@ -56,14 +56,21 @@ final class ErrorLogController {
         if (!$this->requireAdmin()) return;
         $count = isset($_GET['lines']) ? max(1, min(2000, (int)$_GET['lines'])) : 200; // default 200 lines
         $lines = $this->tailLines($this->path, $count);
+        // Parse server-side for robust UX
+        if (class_exists('App\\Helpers\\FileUtils')) {
+            $entries = FileUtils::parseErrorLogLines($lines);
+        } else {
+            $entries = [];
+            foreach ($lines as $ln) { $entries[] = ['ts_raw_app'=>null,'ts_display'=>null,'type'=>'other','rid'=>null,'message'=>(string)$ln,'ctx'=>null,'raw'=>(string)$ln]; }
+        }
         $ts = time();
         // JSON partial mode for refresh without full page reload
         if (isset($_GET['partial']) && ($_GET['partial'] === '1' || $_GET['partial'] === 'true')) {
             header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['ok'=>true,'ts'=>$ts,'lines'=>$lines], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            echo json_encode(['ok'=>true,'ts'=>$ts,'entries'=>$entries,'lines'=>$lines], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             return;
         }
-        Response::view('dashboard/error_log', compact('lines','ts'));
+        Response::view('dashboard/error_log', compact('lines','entries','ts'));
     }
 
     public function download(): void {
@@ -84,5 +91,13 @@ final class ErrorLogController {
         $size = @filesize($file);
         if (is_int($size) && $size >= 0) { header('Content-Length: '.$size); }
         @readfile($file);
+    }
+
+    // Serve a small favicon to avoid 404s on /favicon.ico
+    public function favicon(): void {
+        header('Content-Type: image/svg+xml');
+        header('Cache-Control: public, max-age=86400');
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="4" fill="#0f172a"/><path d="M8 8h8v2H8zM8 12h8v2H8zM8 16h5v2H8z" fill="#60a5fa"/></svg>';
+        echo $svg;
     }
 }

@@ -30,20 +30,50 @@
   let activeTypes = new Set(['php_error','php_exception','php_fatal','http_404','http_405','http_500','power_exec','other']);
   let keyword = '';
 
-  function fmtDate(tsStr){
+  function fmtDateFromParts(dateStr){
+    // Input like '2025-09-15 16:57:33' → '15 Sep 2025 - 16:57:33 (UTC)'
+    const m = String(dateStr||'').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/);
+    if(!m) return dateStr||'';
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3]); const hms = m[4];
+    return `${String(d).padStart(2,'0')} ${months[(mo-1)||0]} ${String(y).padStart(4,'0')} - ${hms} (UTC)`;
+  }
+
+  function fmtDateFromRawBracket(tsStr){
     // input like [2025-09-15 16:57:33] [type] ...
     const m = tsStr.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})\]/);
     if(!m) return tsStr;
-    const months = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const d = new Date(m[1].replace(/-/g,'/') + ' ' + m[2] + ' UTC');
     const txt = (isNaN(d.getTime())) ? (m[1]+' - '+m[2]+' (UTC)') : `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()} - ${m[2]} (UTC)`;
     return txt;
   }
 
   function parseLine(line){
-    // Expected format: [date] [level] [rid] message | ctx={...}
-    const obj = { raw: line, date: '', level: 'other', rid: '', message: line, ctx: null, summary: '', type: 'other' };
-    const m = line.match(/^\[(.+?)\] \[(.+?)\] \[([0-9a-f]+)\] (.*?)(?: \| ctx=(\{.*\}))?$/);
+    // If server-sent parsed entry object
+    if (line && typeof line === 'object' && (line.type || line.ts_raw_app || line.message)) {
+      const type = (line.type || 'other');
+      const rid = line.rid || '';
+      const msg = String(line.message || line.raw || '');
+      const ctx = (typeof line.ctx !== 'undefined') ? line.ctx : null;
+      const dateTxt = line.ts_display || (line.ts_raw_app ? fmtDateFromParts(line.ts_raw_app) : '');
+      const obj = {
+        raw: line.raw || msg,
+        date: line.ts_raw_app || '',
+        date_display: dateTxt,
+        level: type,
+        rid: rid,
+        message: msg,
+        ctx: ctx,
+        summary: (msg.length > 180 ? (msg.slice(0,177)+'…') : msg),
+        type: (TYPE_COLORS[type] ? type : 'other')
+      };
+      return obj;
+    }
+    // Fallback: parse raw string line expected format: [date] [level] [rid] message | ctx={...}
+    const s = String(line||'');
+    const obj = { raw: s, date: '', date_display: '', level: 'other', rid: '', message: s, ctx: null, summary: '', type: 'other' };
+    const m = s.match(/^\[(.+?)\] \[(.+?)\] \[([0-9a-f]+)\] (.*?)(?: \| ctx=(\{.*\}))?$/);
     if (m) {
       obj.date = m[1];
       obj.level = m[2];
@@ -52,6 +82,7 @@
       obj.type = (m[2]||'').toLowerCase();
       try { obj.ctx = m[5]? JSON.parse(m[5]) : null; } catch { obj.ctx = m[5] || null; }
     }
+    obj.date_display = obj.date ? fmtDateFromRawBracket('['+obj.date+']') : '';
     obj.summary = (obj.message.length > 180) ? (obj.message.slice(0,177) + '…') : obj.message;
     if (!(obj.type in TYPE_COLORS)) obj.type = 'other';
     return obj;
@@ -67,7 +98,7 @@
   }
 
   function renderEntry(ent, idx){
-    const dateTxt = fmtDate(`[${ent.date}]`);
+    const dateTxt = ent.date_display || (ent.date ? fmtDateFromRawBracket('['+ent.date+']') : '');
     const detailsId = `logd-${idx}`;
     const ctxPretty = typeof ent.ctx === 'string' ? ent.ctx : (ent.ctx ? JSON.stringify(ent.ctx, null, 2) : null);
     return `
@@ -146,7 +177,7 @@
         if (!json || !json.ok) return;
         lastUpdatedEl?.setAttribute('data-ts', String(json.ts));
         updateLastUpdated(json.ts);
-        ingest(json.lines || []);
+        ingest(json.entries || json.lines || []);
       })
       .catch(()=>{})
       .finally(()=> btnRefresh?.removeAttribute('disabled'));

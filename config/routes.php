@@ -4,6 +4,7 @@ return [
     'GET' => [
         '/' => 'DashboardController@index',
         '/dashboard' => 'DashboardController@index',
+        '/favicon.ico' => 'ErrorLogController@favicon',
         // New PhpManage routes
         '/php/manage' => 'PhpManageController@index',
         // Legacy compat redirect
