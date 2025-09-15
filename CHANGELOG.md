@@ -27,3 +27,7 @@
 
 ### Notes
 ⚠️ Identifiants initiaux : `admin / admin` (à changer après installation).
+## v1.0.2 - 2025-09-15
+- UI: Menu icons rendered via CSS (inline SVG styles removed), improved alignment and focus/hover states.
+- Nav: Active link logic fixed to ensure a single active item (Dashboard only on /dashboard; Error Log on /dashboard/error-log; PhpManage on /php/manage).
+- Error Log: Filters rebuilt with proper id/for labels (clickable), aligned with new filters-bar styles; badges colors refined (php_error=orange, php_exception=red, http=blue, other=gray). UI remains responsive.
