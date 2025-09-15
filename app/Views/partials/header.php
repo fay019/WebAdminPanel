@@ -4,6 +4,10 @@ require_once __DIR__ . '/../../../lib/csrf.php';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $isLogin = ($path === '/login');
 $loggedIn = function_exists('is_logged_in') ? is_logged_in() : false;
+$active = function(string $p) use ($path): string {
+    if ($p === '/') return $path === '/' ? 'active' : '';
+    return str_starts_with($path, $p) ? 'active' : '';
+};
 ?>
 <!doctype html>
 <html lang="fr">
@@ -43,14 +47,14 @@ $loggedIn = function_exists('is_logged_in') ? is_logged_in() : false;
         </div>
         <nav id="mainNav" class="nav">
             <?php if ($loggedIn): ?>
-                <a href="/dashboard" title="Dashboard" aria-label="Dashboard"><img src="/img/menu/dashboard.svg" class="nav-icon" alt="" role="presentation"></a>
-                <a href="/php/manage" title="Système" aria-label="Système"><img src="/img/menu/systemes.svg" class="nav-icon" alt="" role="presentation"></a>
-                <a href="/dashboard/error-log" title="Error Log" aria-label="Error Log" class="btn">🚨 Error Log</a>
-                <a href="/sites" title="Sites" aria-label="Sites"><img src="/img/menu/sites.svg" class="nav-icon" alt="" role="presentation"></a>
-                <a href="/users" title="Utilisateurs" aria-label="Utilisateurs"><img src="/img/menu/users.svg" class="nav-icon" alt="" role="presentation"></a>
-                <a href="/account" title="Compte" aria-label="Compte"><img src="/img/menu/account.svg" class="nav-icon" alt="" role="presentation"></a>
+                <a href="/dashboard" class="nav-link <?= $active('/dashboard') ?>" title="Dashboard" aria-label="Dashboard">Dashboard</a>
+                <a href="/dashboard/error-log" class="nav-link <?= $active('/dashboard/error-log') ?>" title="Error Log" aria-label="Error Log">Error Log</a>
+                <a href="/php/manage" class="nav-link <?= $active('/php') ?>" title="Système" aria-label="Système">Système</a>
+                <a href="/sites" class="nav-link <?= $active('/sites') ?>" title="Sites" aria-label="Sites">Sites</a>
+                <a href="/users" class="nav-link <?= $active('/users') ?>" title="Utilisateurs" aria-label="Utilisateurs">Utilisateurs</a>
+                <a href="/account" class="nav-link <?= $active('/account') ?>" title="Compte" aria-label="Compte">Compte</a>
                 <a class="btn" href="/sites/create">+ Nouveau</a>
-                <a class="btn danger" href="/logout?_csrf=<?= htmlspecialchars($_SESSION['csrf'] ?? csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">Déconnexion</a>
+                <a class="btn danger ml-auto" href="/logout?_csrf=<?= htmlspecialchars($_SESSION['csrf'] ?? csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">Déconnexion</a>
             <?php endif; ?>
             <div class="srv-led" id="srv-led" title="État du serveur (via /api/sysinfo)" aria-live="polite" aria-atomic="true">
                 <span class="srv-led-dot" aria-hidden="true"></span>

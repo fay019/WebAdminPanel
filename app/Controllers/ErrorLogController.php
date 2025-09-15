@@ -54,8 +54,16 @@ final class ErrorLogController {
 
     public function index(): void {
         if (!$this->requireAdmin()) return;
-        $lines = $this->tailLines($this->path, 500);
-        Response::view('dashboard/error_log', compact('lines'));
+        $count = isset($_GET['lines']) ? max(1, min(2000, (int)$_GET['lines'])) : 200; // default 200 lines
+        $lines = $this->tailLines($this->path, $count);
+        $ts = time();
+        // JSON partial mode for refresh without full page reload
+        if (isset($_GET['partial']) && ($_GET['partial'] === '1' || $_GET['partial'] === 'true')) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok'=>true,'ts'=>$ts,'lines'=>$lines], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            return;
+        }
+        Response::view('dashboard/error_log', compact('lines','ts'));
     }
 
     public function download(): void {
