@@ -319,19 +319,9 @@ code {
     padding: 8px;
 }
 
-.log-card {
-    border: 1px solid #22324d;
-    border-radius: 10px;
-    padding: 10px;
-    margin: 8px 0;
-    background: #0f172a;
-    cursor: pointer;
-}
-
-.log-card:hover {
-    background: #111a33;
-    border-color: #2a3b60;
-}
+.log-card{ cursor:pointer; transition:background .15s ease; }
+.log-card:hover{ background: rgba(255,255,255,.05); }
+.log-card .chevron{ width:14px; height:14px; margin-right:6px; transition:transform .2s ease; }
 
 .log-head {
     display: flex;
