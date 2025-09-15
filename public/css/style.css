@@ -624,11 +624,11 @@ code {
 }
 
 /* --- Menu icons & spacing --- */
-.nav a:not(.btn) {
+.nav a:not(.btn):not(.nav-link) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px; /* bigger click target on desktop */
+    width: 40px;
     height: 40px;
     padding: 0;
 }
@@ -637,6 +637,8 @@ code {
     width: 28px;  /* larger icons */
     height: 28px;
     display: block;
+    stroke: currentColor;
+    fill: none;
 }
 
 /* --- Responsive nav --- */
@@ -1057,53 +1059,3 @@ code {
 .srv-led.err .srv-led-dot{background:#ef4444}
 .srv-led.pulse .srv-led-dot{animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
-
-/* === NAV: correctifs icônes & liens texte === */
-
-/* 1) Assure que les liens "texte + icône" utilisent un layout robuste */
-.nav .nav-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 6px;
-    padding: 8px 10px;
-    line-height: 1.2;
-    overflow: visible;
-    width: auto;     /* annule un éventuel width forcé */
-    height: auto;    /* annule un éventuel height forcé */
-}
-
-/* 2) Icône dédiée : pas de style inline, tout passe par cette classe */
-.nav .nav-link .nav-ico {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
-    stroke: currentColor;
-    fill: none;
-}
-
-/* 3) IMPORTANT : si ce bloc existe chez toi, on le désactive pour les liens texte.
-      Il ne doit s’appliquer QUE si tu fais un menu "icônes seules".
-      On le restreint aux items portant ".icon-only" pour éviter le conflit. */
-.nav a:not(.btn) { /* <-- ancien comportement "icône seule" */
-    /* inactif par défaut — on bascule ce style sur .icon-only a */
-}
-.nav.icon-only a:not(.btn) { /* sers-toi de .icon-only sur <nav> si un jour tu veux ce rendu */
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-}
-
-/* 4) Mobile : même philosophie (texte + icône) */
-@media (max-width: 768px) {
-    .nav .nav-link {
-        padding: 10px 12px;
-    }
-    .nav .nav-link .nav-ico {
-        width: 18px;
-        height: 18px;
-    }
-}
