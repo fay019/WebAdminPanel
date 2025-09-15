@@ -1,37 +1,37 @@
 // Lightweight Error Log UI renderer
-(function(){
-  const RAW_ID = '__error_log_data';
-  const listEl = document.getElementById('logList');
-  const searchEl = document.getElementById('logSearch');
-  const btnRefresh = document.getElementById('btnRefresh');
-  const btnLoadMore = document.getElementById('btnLoadMore');
-  const autoScrollEl = document.getElementById('autoScroll');
-  const lastUpdatedEl = document.getElementById('logLastUpdated');
-  const lastUpdatedTxt = document.getElementById('logLastUpdatedTxt');
-  const countEl = document.getElementById('logCount');
+(function () {
+    const RAW_ID = '__error_log_data';
+    const listEl = document.getElementById('logList');
+    const searchEl = document.getElementById('logSearch');
+    const btnRefresh = document.getElementById('btnRefresh');
+    const btnLoadMore = document.getElementById('btnLoadMore');
+    const autoScrollEl = document.getElementById('autoScroll');
+    const lastUpdatedEl = document.getElementById('logLastUpdated');
+    const lastUpdatedTxt = document.getElementById('logLastUpdatedTxt');
+    const countEl = document.getElementById('logCount');
 
-  if (!listEl) return;
+    if (!listEl) return;
 
-  const TYPE_COLORS = {
-    php_error: 'warn',
-    php_exception: 'danger',
-    php_fatal: 'danger',
-    http_404: 'info',
-    http_405: 'info',
-    http_500: 'danger',
-    power_exec: 'info',
-    other: 'muted'
-  };
+    const TYPE_COLORS = {
+        php_error: 'warn',
+        php_exception: 'danger',
+        php_fatal: 'danger',
+        http_404: 'info',
+        http_405: 'info',
+        http_500: 'danger',
+        power_exec: 'info',
+        other: 'muted'
+    };
 
-  let allLines = [];
-  let entries = [];
-  let pageSize = 50;
-  let visibleCount = 0;
-  let activeTypes = new Set(['php_error','php_exception','php_fatal','http_404','http_405','http_500','power_exec','other']);
-  let keyword = '';
+    let allLines = [];
+    let entries = [];
+    let pageSize = 50;
+    let visibleCount = 0;
+    let activeTypes = new Set(['php_error', 'php_exception', 'php_fatal', 'http_404', 'http_405', 'http_500', 'power_exec', 'other']);
+    let keyword = '';
 
     // Colorer les labels des filtres comme des badges
-    function colorizeFilters(){
+    function colorizeFilters() {
         document.querySelectorAll('.filter').forEach(f => {
             const input = f.querySelector('input.flt');
             const label = f.querySelector('label');
@@ -42,75 +42,115 @@
         });
     }
 
-  function fmtDateFromParts(dateStr){
-    // Input like '2025-09-15 16:57:33' → '15 Sep 2025 - 16:57:33 (UTC)'
-    const m = String(dateStr||'').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/);
-    if(!m) return dateStr||'';
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3]); const hms = m[4];
-    return `${String(d).padStart(2,'0')} ${months[(mo-1)||0]} ${String(y).padStart(4,'0')} - ${hms} (UTC)`;
-  }
-
-  function fmtDateFromRawBracket(tsStr){
-    // input like [2025-09-15 16:57:33] [type] ...
-    const m = tsStr.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})\]/);
-    if(!m) return tsStr;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const d = new Date(m[1].replace(/-/g,'/') + ' ' + m[2] + ' UTC');
-    const txt = (isNaN(d.getTime())) ? (m[1]+' - '+m[2]+' (UTC)') : `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()} - ${m[2]} (UTC)`;
-    return txt;
-  }
-
-  function parseLine(line){
-    // If server-sent parsed entry object
-    if (line && typeof line === 'object' && (line.type || line.ts_raw_app || line.message)) {
-      const type = (line.type || 'other');
-      const rid = line.rid || '';
-      const msg = String(line.message || line.raw || '');
-      const ctx = (typeof line.ctx !== 'undefined') ? line.ctx : null;
-      const dateTxt = line.ts_display || (line.ts_raw_app ? fmtDateFromParts(line.ts_raw_app) : '');
-      const obj = {
-        raw: line.raw || msg,
-        date: line.ts_raw_app || '',
-        date_display: dateTxt,
-        level: type,
-        rid: rid,
-        message: msg,
-        ctx: ctx,
-        summary: (msg.length > 180 ? (msg.slice(0,177)+'…') : msg),
-        type: (TYPE_COLORS[type] ? type : 'other')
-      };
-      return obj;
+    function fmtDateFromParts(dateStr) {
+        // Input like '2025-09-15 16:57:33' → '15 Sep 2025 - 16:57:33 (UTC)'
+        const m = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/);
+        if (!m) return dateStr || '';
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const y = Number(m[1]);
+        const mo = Number(m[2]);
+        const d = Number(m[3]);
+        const hms = m[4];
+        return `${String(d).padStart(2, '0')} ${months[(mo - 1) || 0]} ${String(y).padStart(4, '0')} - ${hms} (UTC)`;
     }
-    // Fallback: parse raw string line expected format: [date] [level] [rid] message | ctx={...}
-    const s = String(line||'');
-    const obj = { raw: s, date: '', date_display: '', level: 'other', rid: '', message: s, ctx: null, summary: '', type: 'other' };
-    const m = s.match(/^\[(.+?)\] \[(.+?)\] \[([0-9a-f]+)\] (.*?)(?: \| ctx=(\{.*\}))?$/);
-    if (m) {
-      obj.date = m[1];
-      obj.level = m[2];
-      obj.rid = m[3];
-      obj.message = m[4];
-      obj.type = (m[2]||'').toLowerCase();
-      try { obj.ctx = m[5]? JSON.parse(m[5]) : null; } catch { obj.ctx = m[5] || null; }
+
+    function fmtDateFromRawBracket(tsStr) {
+        // input like [2025-09-15 16:57:33] [type] ...
+        const m = tsStr.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})\]/);
+        if (!m) return tsStr;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const d = new Date(m[1].replace(/-/g, '/') + ' ' + m[2] + ' UTC');
+        const txt = (isNaN(d.getTime())) ? (m[1] + ' - ' + m[2] + ' (UTC)') : `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()} - ${m[2]} (UTC)`;
+        return txt;
     }
-    obj.date_display = obj.date ? fmtDateFromRawBracket('['+obj.date+']') : '';
-    obj.summary = (obj.message.length > 180) ? (obj.message.slice(0,177) + '…') : obj.message;
-    if (!(obj.type in TYPE_COLORS)) obj.type = 'other';
-    return obj;
-  }
 
-  function renderBadge(type){
-    const cls = TYPE_COLORS[type] || 'muted';
-    return `<span class="badge ${cls}">[${escapeHtml(type)}]</span>`;
-  }
+    function parseLine(line) {
+        // ignore null/undefined
+        if (line == null) return null;
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-  }
+        // ignore chaînes vides / uniquement espaces
+        if (typeof line === 'string' && line.trim() === '') return null;
 
-    function renderEntry(ent, idx){
-        const dateTxt = ent.date_display || (ent.date ? fmtDateFromRawBracket('['+ent.date+']') : '');
+        // Si le serveur a déjà parsé la ligne en objet
+        if (line && typeof line === 'object' && (line.type || line.ts_raw_app || line.message)) {
+            const type = (line.type || 'other');
+            const rid = line.rid || '';
+            const msg = String(line.message || line.raw || '').trim();
+
+            // objet-parsé mais message vide -> ignorer
+            if (msg === '') return null;
+
+            const ctx = (typeof line.ctx !== 'undefined') ? line.ctx : null;
+            const dateTxt = line.ts_display || (line.ts_raw_app ? fmtDateFromParts(line.ts_raw_app) : '');
+            const obj = {
+                raw: line.raw || msg,
+                date: line.ts_raw_app || '',
+                date_display: dateTxt,
+                level: type,
+                rid,
+                message: msg,
+                ctx,
+                summary: (msg.length > 180 ? (msg.slice(0, 177) + '…') : msg),
+                type: (TYPE_COLORS[type] ? type : 'other')
+            };
+            return obj;
+        }
+
+        // Fallback: parse string format: [date] [level] [rid] message | ctx={...}
+        const s = String(line || '').trim();
+        if (s === '') return null; // <-- ignorer les strings blanches
+
+        const obj = {
+            raw: s,
+            date: '',
+            date_display: '',
+            level: 'other',
+            rid: '',
+            message: s,
+            ctx: null,
+            summary: '',
+            type: 'other'
+        };
+        const m = s.match(/^\[(.+?)\] \[(.+?)\] \[([0-9a-f]+)\] (.*?)(?: \| ctx=(\{.*\}))?$/);
+        if (m) {
+            obj.date = m[1];
+            obj.level = m[2];
+            obj.rid = m[3];
+            obj.message = m[4].trim();
+            obj.type = (m[2] || '').toLowerCase();
+            try {
+                obj.ctx = m[5] ? JSON.parse(m[5]) : null;
+            } catch {
+                obj.ctx = m[5] || null;
+            }
+        }
+        obj.date_display = obj.date ? fmtDateFromRawBracket('[' + obj.date + ']') : '';
+        obj.summary = (obj.message.length > 180) ? (obj.message.slice(0, 177) + '…') : obj.message;
+        if (!(obj.type in TYPE_COLORS)) obj.type = 'other';
+
+        // si au final il n'y a vraiment aucun message -> ignorer
+        if (!obj.summary || obj.summary.trim() === '') return null;
+
+        return obj;
+    }
+
+    function renderBadge(type) {
+        const cls = TYPE_COLORS[type] || 'muted';
+        return `<span class="badge ${cls}">[${escapeHtml(type)}]</span>`;
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            '\'': '&#39;'
+        }[c]));
+    }
+
+    function renderEntry(ent, idx) {
+        const dateTxt = ent.date_display || (ent.date ? fmtDateFromRawBracket('[' + ent.date + ']') : '');
         const detailsId = `logd-${idx}`;
         const ctxPretty = typeof ent.ctx === 'string' ? ent.ctx : (ent.ctx ? JSON.stringify(ent.ctx, null, 2) : null);
 
@@ -140,93 +180,111 @@
     </div>`;
     }
 
-  function applyFilters(list){
-    const kw = keyword.trim().toLowerCase();
-    return list.filter(e => activeTypes.has(e.type) && (kw==='' || e.raw.toLowerCase().includes(kw)));
-  }
-
-  function render()
-  {
-    const filtered = applyFilters(entries);
-    const slice = filtered.slice(Math.max(0, filtered.length - visibleCount));
-    if (slice.length === 0) {
-      listEl.innerHTML = '<div class="small muted" style="padding:8px 12px">Aucune erreur enregistrée.</div>';
-      countEl && (countEl.textContent = '0');
-      return;
+    function applyFilters(list) {
+        const kw = keyword.trim().toLowerCase();
+        return list.filter(e => activeTypes.has(e.type) && (kw === '' || e.raw.toLowerCase().includes(kw)));
     }
-    listEl.innerHTML = slice.map(renderEntry).join('');
-    countEl && (countEl.textContent = `${slice.length} / ${filtered.length}`);
-    // bind toggles
-    listEl.querySelectorAll('.log-card').forEach(card => {
-      card.addEventListener('click', () => toggleCard(card));
-      card.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggleCard(card);} });
-    });
-    if (autoScrollEl && autoScrollEl.checked) {
-      listEl.scrollTop = listEl.scrollHeight;
+
+    function render() {
+        const filtered = applyFilters(entries);
+        const slice = filtered.slice(Math.max(0, filtered.length - visibleCount));
+        if (slice.length === 0) {
+            listEl.innerHTML = '<div class="small muted" style="padding:8px 12px">Aucune erreur enregistrée.</div>';
+            countEl && (countEl.textContent = '0');
+            return;
+        }
+        listEl.innerHTML = slice.map(renderEntry).join('');
+        countEl && (countEl.textContent = `${slice.length} / ${filtered.length}`);
+        // bind toggles
+        listEl.querySelectorAll('.log-card').forEach(card => {
+            card.addEventListener('click', () => toggleCard(card));
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleCard(card);
+                }
+            });
+        });
+        if (autoScrollEl && autoScrollEl.checked) {
+            listEl.scrollTop = listEl.scrollHeight;
+        }
     }
-  }
 
-  function toggleCard(card){
-    const details = card.querySelector('.log-details');
-    const expanded = !(details.hasAttribute('hidden'));
-    if (expanded){ details.setAttribute('hidden', ''); card.setAttribute('aria-expanded','false'); }
-    else{ details.removeAttribute('hidden'); card.setAttribute('aria-expanded','true'); }
-  }
+    function toggleCard(card) {
+        const details = card.querySelector('.log-details');
+        const expanded = !(details.hasAttribute('hidden'));
+        if (expanded) {
+            details.setAttribute('hidden', '');
+            card.setAttribute('aria-expanded', 'false');
+        } else {
+            details.removeAttribute('hidden');
+            card.setAttribute('aria-expanded', 'true');
+        }
+    }
 
-  function ingest(lines){
-    allLines = Array.isArray(lines) ? lines : [];
-    entries = allLines.map(parseLine);
-    visibleCount = Math.max(pageSize, Math.min(pageSize, entries.length));
-    render();
-  }
+    function ingest(lines) {
+        allLines = Array.isArray(lines) ? lines : [];
+        entries = allLines.map(parseLine).filter(Boolean);
+        visibleCount = Math.max(pageSize, Math.min(pageSize, entries.length));
+        render();
+    }
 
-  function humanizeTs(ts){
-    const d = new Date(ts*1000);
-    const pad = n=> String(n).padStart(2,'0');
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  }
+    function humanizeTs(ts) {
+        const d = new Date(ts * 1000);
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
 
-  function updateLastUpdated(ts){
-    if (!lastUpdatedEl || !lastUpdatedTxt) return;
-    const n = Number(lastUpdatedEl.getAttribute('data-ts')||ts||Date.now()/1000);
-    lastUpdatedTxt.textContent = humanizeTs(n);
-  }
+    function updateLastUpdated(ts) {
+        if (!lastUpdatedEl || !lastUpdatedTxt) return;
+        const n = Number(lastUpdatedEl.getAttribute('data-ts') || ts || Date.now() / 1000);
+        lastUpdatedTxt.textContent = humanizeTs(n);
+    }
 
-  function refresh(){
-    btnRefresh?.setAttribute('disabled', 'true');
-    fetch('/dashboard/error-log?partial=1&lines=200', { headers: { 'Accept': 'application/json' } })
-      .then(r=>r.json())
-      .then(json => {
-        if (!json || !json.ok) return;
-        lastUpdatedEl?.setAttribute('data-ts', String(json.ts));
-        updateLastUpdated(json.ts);
-        ingest(json.entries || json.lines || []);
-      })
-      .catch(()=>{})
-      .finally(()=> btnRefresh?.removeAttribute('disabled'));
-  }
+    function refresh() {
+        btnRefresh?.setAttribute('disabled', 'true');
+        fetch('/dashboard/error-log?partial=1&lines=200', {headers: {'Accept': 'application/json'}})
+            .then(r => r.json())
+            .then(json => {
+                if (!json || !json.ok) return;
+                lastUpdatedEl?.setAttribute('data-ts', String(json.ts));
+                updateLastUpdated(json.ts);
+                ingest(json.entries || json.lines || []);
+            })
+            .catch(() => {
+            })
+            .finally(() => btnRefresh?.removeAttribute('disabled'));
+    }
 
-  // Events
-  document.querySelectorAll('.flt').forEach(chk => {
-    chk.addEventListener('change', function(){
-      const v = this.value;
-      if (this.checked) activeTypes.add(v); else activeTypes.delete(v);
-      render();
+    // Events
+    document.querySelectorAll('.flt').forEach(chk => {
+        chk.addEventListener('change', function () {
+            const v = this.value;
+            if (this.checked) activeTypes.add(v); else activeTypes.delete(v);
+            render();
+        });
     });
-  });
 
-  searchEl?.addEventListener('input', function(){ keyword = this.value || ''; render(); });
-  btnRefresh?.addEventListener('click', refresh);
-  btnLoadMore?.addEventListener('click', function(){ visibleCount = Math.min(entries.length, visibleCount + pageSize); render(); });
+    searchEl?.addEventListener('input', function () {
+        keyword = this.value || '';
+        render();
+    });
+    btnRefresh?.addEventListener('click', refresh);
+    btnLoadMore?.addEventListener('click', function () {
+        visibleCount = Math.min(entries.length, visibleCount + pageSize);
+        render();
+    });
 
-  colorizeFilters();
-  // Init from embedded JSON
-  try {
-    const raw = document.getElementById(RAW_ID)?.textContent || '[]';
-    const arr = JSON.parse(raw);
-    ingest(arr);
-  } catch { ingest([]); }
+    colorizeFilters();
+    // Init from embedded JSON
+    try {
+        const raw = document.getElementById(RAW_ID)?.textContent || '[]';
+        const arr = JSON.parse(raw);
+        ingest(arr);
+    } catch {
+        ingest([]);
+    }
 
-  // Initial last updated text
-  updateLastUpdated(Number(lastUpdatedEl?.getAttribute('data-ts')||Date.now()/1000));
+    // Initial last updated text
+    updateLastUpdated(Number(lastUpdatedEl?.getAttribute('data-ts') || Date.now() / 1000));
 })();
