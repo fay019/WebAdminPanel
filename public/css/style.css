@@ -318,10 +318,22 @@ code {
     border-radius: 10px;
     padding: 8px;
 }
+/* Indice visuel de dépliage (chevron) */
+.log-card .chev {
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+    opacity: .7;
+    transition: transform .2s ease, opacity .12s ease;
+}
+.log-card:hover .chev {
+    opacity: 1;
+}
 
-.log-card{ cursor:pointer; transition:background .15s ease; }
-.log-card:hover{ background: rgba(255,255,255,.05); }
-.log-card .chevron{ width:14px; height:14px; margin-right:6px; transition:transform .2s ease; }
+/* (optionnel) si tu veux pivoter le chevron quand c'est ouvert */
+.log-card[aria-expanded="true"] .chev {
+    transform: rotate(90deg);
+}
 
 .log-head {
     display: flex;

@@ -101,29 +101,28 @@
         const dateTxt = ent.date_display || (ent.date ? fmtDateFromRawBracket('['+ent.date+']') : '');
         const detailsId = `logd-${idx}`;
         const ctxPretty = typeof ent.ctx === 'string' ? ent.ctx : (ent.ctx ? JSON.stringify(ent.ctx, null, 2) : null);
-        const title = 'Cliquer pour afficher les détails';
 
         return `
-    <div class="log-card" data-type="${escapeHtml(ent.type)}"
+    <div class="log-card"
+         data-type="${escapeHtml(ent.type)}"
          tabindex="0" role="button"
          aria-expanded="false" aria-controls="${detailsId}"
-         title="${title}">
+         title="Cliquer pour afficher plus de détails">
       <div class="log-head">
         <div class="log-left">
-          <!-- chevron visuel -->
-          <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true">
+          <!-- chevron indicateur de dépliage -->
+          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M8 9l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none"
                   stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
+
           <div class="log-date">${escapeHtml(dateTxt)}</div>
           <div class="log-badges">${renderBadge(ent.type)}</div>
         </div>
         <div class="log-summary" title="${escapeHtml(ent.message)}">${escapeHtml(ent.summary)}</div>
       </div>
       <div class="log-details" id="${detailsId}" hidden>
-        <div class="log-ctx">
-          ${ctxPretty ? `<pre>${escapeHtml(ctxPretty)}</pre>` : '<em class="muted">(pas de détails)</em>'}
-        </div>
+        <div class="log-ctx">${ctxPretty ? `<pre>${escapeHtml(ctxPretty)}</pre>` : '<em class="muted">(pas de détails)</em>'}</div>
         <div class="log-rid small muted">requestId: ${escapeHtml(ent.rid || '')}</div>
       </div>
     </div>`;
@@ -155,23 +154,12 @@
     }
   }
 
-    function toggleCard(card){
-        const details = card.querySelector('.log-details');
-        const chev = card.querySelector('.chevron');
-        const expanded = !(details.hasAttribute('hidden'));
-
-        if (expanded){
-            details.setAttribute('hidden', '');
-            card.setAttribute('aria-expanded','false');
-            card.classList.remove('expanded');
-            if (chev) chev.style.transform = 'rotate(0deg)';
-        } else {
-            details.removeAttribute('hidden');
-            card.setAttribute('aria-expanded','true');
-            card.classList.add('expanded');
-            if (chev) chev.style.transform = 'rotate(90deg)';
-        }
-    }
+  function toggleCard(card){
+    const details = card.querySelector('.log-details');
+    const expanded = !(details.hasAttribute('hidden'));
+    if (expanded){ details.setAttribute('hidden', ''); card.setAttribute('aria-expanded','false'); }
+    else{ details.removeAttribute('hidden'); card.setAttribute('aria-expanded','true'); }
+  }
 
   function ingest(lines){
     allLines = Array.isArray(lines) ? lines : [];
