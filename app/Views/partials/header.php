@@ -85,16 +85,26 @@ $active = function (string $p) use ($path): string {
 
                 <a href="/users" class="nav-link <?= $active('/users') ?>" title="Utilisateurs" aria-label="Utilisateurs">
                     <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">
-                        <!-- icône "user" -->
-                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M16 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/>
+                        <!-- Icône groupe (2 silhouettes) -->
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"
+                              stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/>
+                        <circle cx="9" cy="7" r="4"
+                                stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" fill="none"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"
+                              stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"
+                              stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/>
                     </svg>
                     <span>Utilisateurs</span>
                 </a>
 
                 <a href="/account" class="nav-link <?= $active('/account') ?>" title="Compte" aria-label="Compte">
                     <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">
-                        <!-- icône "profil" -->
-                        <path d="M12 12a5 5 0 100-10 5 5 0 000 10zM3 21a9 9 0 1118 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/>
+                        <!-- Icône utilisateur simple -->
+                        <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Z"
+                              stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/>
+                        <path d="M3 21a9 9 0 1 1 18 0"
+                              stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/>
                     </svg>
                     <span>Compte</span>
                 </a>
