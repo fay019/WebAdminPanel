@@ -160,7 +160,7 @@ window.UI_CONFIG = window.UI_CONFIG || { temp: { cpu: { cold:45, hot:70 }, ambie
 
         <div class="metric">
             <h4>Processus actifs</h4>
-            <div class="value" data-metric="procCount"><?= htmlspecialchars($sysinfo['processes']) ?></div>
+            <div class="value" data-metric="procCount"><?= htmlspecialchars($sysinfo['processes'] ?? 'n/a') ?></div>
         </div>
 
         <div class="metric">

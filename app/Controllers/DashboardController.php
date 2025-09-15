@@ -16,8 +16,25 @@ class DashboardController {
         $svc = new SystemInfoService(4);
         $data = $svc->get();
         $php_fpm_compact = $svc->phpFpmCompact($data);
+        // Build a flat $sysinfo map for the legacy view (safe defaults)
+        $diskWww = $data['disk']['srv_www'] ?? null;
+        $topCpu = $data['cpu']['top_cpu_proc'] ?? null;
+        $topMem = $data['mem']['top_mem_proc'] ?? null;
+        $sysinfo = [
+            'uptime' => $data['uptime']['human'] ?? 'n/a',
+            'disk' => $diskWww ? ($diskWww['used_gb'] . 'G/' . $diskWww['size_gb'] . 'G (' . $diskWww['used_pct'] . '%)') : 'n/a',
+            'os' => $data['os']['pretty'] ?? 'n/a',
+            'kernel' => $data['os']['kernel'] ?? 'n/a',
+            'processes' => $data['processes']['count'] ?? 'n/a',
+            'cpu_cores' => $data['cpu']['cores'] ?? 'n/a',
+            'top_cpu' => $topCpu ? ($topCpu['cmd'] . ' (' . ($topCpu['cpu'] ?? 0) . '%)') : 'n/a',
+            'top_mem' => $topMem ? ($topMem['cmd'] . ' (' . ($topMem['rss_mb'] ?? 0) . ' MiB)') : 'n/a',
+            'disk_www' => $diskWww ? ($diskWww['used_gb'] . 'G/' . $diskWww['size_gb'] . 'G (' . $diskWww['used_pct'] . '%)') : 'n/a',
+            'php_cli' => $data['php']['cli_version'] ?? 'n/a',
+            'nginx_version' => $data['nginx']['version'] ?? 'n/a',
+        ];
 
-        Response::view('dashboard/index', compact('sitesCount','php_fpm_compact'));
+        Response::view('dashboard/index', compact('sitesCount','php_fpm_compact','sysinfo'));
     }
 
     // New normalized JSON endpoint (cached)
