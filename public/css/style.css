@@ -1372,3 +1372,37 @@ code {
     background: rgba(96, 165, 250, .2);
     color: #60a5fa;
 }
+/* --- Nav: icônes seules aussi pour les boutons (Nouveau / Déconnexion) --- */
+
+/* cacher le texte, garder le tooltip (title) + accessibilité (aria-label) */
+.nav .btn span {
+    display: none;
+}
+
+/* rendre les boutons carrés, centrés, même gabarit que les icônes du menu */
+.nav .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;       /* identique aux liens icon-only */
+    height: 40px;
+    padding: 0;        /* retire le padding texte */
+    border-radius: 10px;
+}
+
+/* dimensionner l'icône du bouton (prend en charge nav-ico et nav-icon) */
+.nav .btn .nav-ico,
+.nav .btn .nav-icon {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+    flex: 0 0 auto;
+}
+
+/* (facultatif) sur petit écran, un poil plus grand */
+@media (max-width: 860px){
+    .nav .btn { width: 44px; height: 44px; }
+    .nav .btn .nav-ico,
+    .nav .btn .nav-icon { width: 22px; height: 22px; }
+}
