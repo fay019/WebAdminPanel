@@ -1444,8 +1444,6 @@ code {
     padding: 4px 8px;
     border-radius: 999px;
     border: 1px solid #22324d;
-    background: #0e1627;
-    color: #cbd5e1;
     cursor: pointer;
     user-select: none;
 }

@@ -17,6 +17,15 @@ function current_user(): string { return $_SESSION['user'] ?? 'unknown'; }
 function audit(string $action, array $payload=[]): void {
   $st=db()->prepare('INSERT INTO audit(username,action,payload,created_at) VALUES(:u,:a,:p,:c)');
   $st->execute([':u'=>current_user(),':a'=>$action,':p'=>json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),':c'=>date('c')]);
-  $dir=__DIR__.'/../logs'; if(!is_dir($dir)) @mkdir($dir,0775,true);
-  file_put_contents($dir.'/panel.log', sprintf("%s\t%s\t%s\t%s\n", date('c'), current_user(), $action, json_encode($payload)), FILE_APPEND);
+  $dir = __DIR__ . '/../logs';
+  $logFile = $dir . '/panel.log';
+  $line = sprintf("%s\t%s\t%s\t%s\n", date('c'), current_user(), $action, json_encode($payload, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+  // Try to create directory if missing, then write log; on failure, fallback to PHP's error_log to avoid runtime warnings/exceptions.
+  $dirReady = is_dir($dir) || @mkdir($dir, 0775, true);
+  if ($dirReady) {
+    $ok = @file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
+    if ($ok === false) { @error_log('[panel_audit] '.$line); }
+  } else {
+    @error_log('[panel_audit] '.$line);
+  }
 }
