@@ -85,7 +85,8 @@ a {
     border: 0;
     padding: 6px;
     margin-right: 8px;
-    cursor: pointer
+    cursor: pointer;
+    overflow: visible;
 }
 
 .nav-toggle .bar {
@@ -232,14 +233,28 @@ code {
 }
 
 /* Nav links modern style */
+:root {
+    --nav-active-bg: rgba(96,165,250,.18);
+    --nav-active-fg: var(--text);
+    --nav-hover-fg: #cfe1ff;
+    --focus: #60a5fa;
+}
 .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.2;
+    overflow: visible;
     padding: 8px 10px;
     border-radius: 10px;
     color: var(--text);
 }
-.nav-link:hover { background: rgba(96,165,250,.12); }
+.nav-link svg { width: 16px; height: 16px; flex: 0 0 auto; stroke: currentColor; fill: none; }
+.nav-link:hover { color: var(--nav-hover-fg); background: rgba(96,165,250,.12); }
+.nav-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .nav-link.active {
-    background: rgba(96,165,250,.18);
+    background: var(--nav-active-bg);
+    color: var(--nav-active-fg);
     border: 1px solid rgba(96,165,250,.35);
     font-weight: 600;
 }
@@ -249,8 +264,8 @@ code {
 
 /* Responsive nav (burger) */
 @media (max-width: 768px) {
-  .nav-toggle { display: inline-block; }
-  .nav { display:none; position: absolute; right: 16px; left: 16px; top: 58px; background: #0b1220; border: 1px solid #1f2a44; border-radius: 12px; padding: 10px; flex-direction: column; gap: 10px; }
+  .nav-toggle { display: inline-flex; }
+  .nav { display:none; position: absolute; right: 16px; left: 16px; top: 58px; background: #0b1220; border: 1px solid #1f2a44; border-radius: 12px; padding: 10px; flex-direction: column; gap: 10px; overflow: visible; }
   .nav.show { display: flex; }
 }
 
@@ -268,8 +283,19 @@ code {
 /* Badge aliases */
 .badge.info { background:#1e3a8a; border-color:#1d4ed8; color:#c7d2fe; }
 .badge.danger { background:#7f1d1d; border-color:#b91c1c; color:#fecaca; }
+.badge.warn { background:#7c2d12; border-color:#f97316; color:#ffd7ae; }
+.badge.muted { background:#2a2a2a; border-color:#3a3a3a; color:#e0e0e0; }
+/* Additional semantic aliases for acceptance */
+.badge.error { background:#7f1d1d; border-color:#b91c1c; color:#fecaca; }
+.badge.exception { background:#7f1d1d; border-color:#b91c1c; color:#ffc2c2; }
+.badge.http { background:#0f1f3b; border-color:#1d4ed8; color:#b3c7ff; }
+.badge.other { background:#2a2a2a; border-color:#3a3a3a; color:#e0e0e0; }
 
-/* Chips used as filters */
+/* Filters bar alignment */
+.filters-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.filter { display:inline-flex; align-items:center; gap:6px; }
+.filter input { width:16px; height:16px; }
+/* Chips used as filters (legacy) */
 .chip { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:#0e1627; border:1px solid #22324d; color:#cbd5e1; }
 .chip.small { font-size:12px; }
 
